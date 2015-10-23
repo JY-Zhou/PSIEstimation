@@ -187,7 +187,7 @@ def initial():
 def check(alpha, beta, length, K=25):
     global checkTime
     checkTime = checkTime + 1
-    showTrend(alpha, beta)
+    #showTrend(alpha, beta)
     s = 0
     for g in alpha:
         for i in g:
