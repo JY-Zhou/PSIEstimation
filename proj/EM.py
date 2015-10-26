@@ -1,5 +1,6 @@
 import scipy as scp
 import numpy as np
+import json
 
 class EMAlgorithm:
     def __init__(self, NG, NE, NW, K):
@@ -32,12 +33,19 @@ class EMAlgorithm:
         self.initialByKmerTable()
 
     def numberOfConstraints(self, NEg):
-        return np.round(0.5 *(NEg * NEg + 4 * NEg - 5))
+        return np.round(0.5 *(NEg * NEg + 5 * NEg - 4))
     
     def initialByKmerTable(self):
+        
+        
         pass
     
+    def Estep(self):
+        pass
     
-     
-test = EMAlgorithm(3, [2, 3, 5], 57, 25)
-print(test)
+    def Mstep(self):
+        pass
+          
+if __name__ == "__main__":
+    test = EMAlgorithm(3, [2, 3, 5], 57, 25)
+    print(test.L)
