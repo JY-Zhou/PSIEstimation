@@ -36,16 +36,49 @@ class EMAlgorithm:
         return np.round(0.5 *(NEg * NEg + 5 * NEg - 4))
     
     def initialByKmerTable(self):
-        
-        
-        pass
+        return
     
-    def Estep(self):
-        pass
+    def initialVariables(self):
+        return
+        
     
-    def Mstep(self):
-        pass
+    def eStep(self):
+        for s in range(self.NW):
+            tot = 0.0
+            for g in range(self.NG):
+                self.Mu[s, g] = self.Z[g, 1] * np.dot(self.X[g], self.C[s][g]/self.L[g])
+                tot += self.Mu[s, g]
+            for g in range(self.NG):
+                self.Mu[s, g] /= tot
+        return
+    
+    def mStep(self):
+        tot = 0.0
+        for g in range(self.NG):
+            self.Z[g, 1] = np.dot(self.W, self.Mu[:,g])
+            tot += self.Z[g, 1]
+        for g in range(self.NG):
+            self.Z[g, 1] /= tot
+            
+        for g in range(self.NG):
+            self.OptimizeQg()
+        
+        return
+    
+    def optimizeQg(self):
+        return
           
+    def work(self, time):
+        self.initialByKmerTable()
+        self.initialVariables()
+        while time > 0:
+            self.eStep()
+            self.mStep()
+            time -= 1
+        return
+        
 if __name__ == "__main__":
     test = EMAlgorithm(3, [2, 3, 5], 57, 25)
+    print(test.L)
+    test.work(1)
     print(test.L)
