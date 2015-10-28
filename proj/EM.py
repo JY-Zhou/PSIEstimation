@@ -11,24 +11,24 @@ class EMAlgorithm:
         
         self.L = []
         for g in range(self.NG):
-            self.L.append(np.zeros((1, self.NE[g])))
+            self.L.append(np.random.rand(1, self.NE[g]))
         
         self.C = []
         for s in range(self.NW):
             self.C.append([])
             for g in range(self.NG):
-                self.C[s].append(np.zeros((1, self.NE[g])))
+                self.C[s].append(np.random.rand(1, self.NE[g]))
         
-        self.W = np.zeros((1, self.NW))
-        self.Z = np.zeros((1, self.NG))
+        self.W = np.random.rand(1, self.NW)
+        self.Z = np.random.rand(1, self.NG)
         self.X = []
         for g in range(self.NG):
-            self.X.append(np.zeros((1, self.NE[g])))
+            self.X.append(np.random.rand(1, self.NE[g]))
             
-        self.Mu = np.zeros((self.NW, self.NG))
+        self.Mu = np.random.rand(self.NW, self.NG)
         self.A = []
         for g in range(self.NG):
-            self.A = np.zeros((self.numberOfConstraints(self.NE[g]), self.NE[g]))
+            self.A = np.random.rand(self.numberOfConstraints(self.NE[g]), self.NE[g])
 
         self.initialByKmerTable()
 
@@ -39,33 +39,31 @@ class EMAlgorithm:
         return
     
     def initialVariables(self):
-        return
-        
+        return        
     
     def eStep(self):
         for s in range(self.NW):
             tot = 0.0
             for g in range(self.NG):
-                self.Mu[s, g] = self.Z[g, 1] * np.dot(self.X[g], self.C[s][g]/self.L[g])
+                self.Mu[s, g] = self.Z[0, g] * np.dot(self.C[s][g]/self.L[g], self.X[g].T)[0, 0]
                 tot += self.Mu[s, g]
             for g in range(self.NG):
-                self.Mu[s, g] /= tot
+                self.Mu[s, g] /= tot 
         return
     
     def mStep(self):
         tot = 0.0
         for g in range(self.NG):
-            self.Z[g, 1] = np.dot(self.W, self.Mu[:,g])
-            tot += self.Z[g, 1]
+            self.Z[0, g] = np.dot(self.W, self.Mu[:,g])
+            tot += self.Z[0, g]
         for g in range(self.NG):
-            self.Z[g, 1] /= tot
-            
+            self.Z[0, g] /= tot            
         for g in range(self.NG):
-            self.OptimizeQg()
-        
+            self.optimizeQ(g)        
         return
     
-    def optimizeQg(self):
+    def optimizeQ(self, g):
+        
         return
           
     def work(self, time):
@@ -75,10 +73,23 @@ class EMAlgorithm:
             self.eStep()
             self.mStep()
             time -= 1
+        self.computePSI()
         return
+    
+    def computePSI(self):
+        self.Psi = []
+        for g in range(self.NG):
+            self.Psi.append([])
+            for e in range(self.NE[g]):
+                self.Psi[g].append(0.0)
+                    
+        return
+    
+    def show(self):
+        print(self.X)
+        print(self.Z)
         
 if __name__ == "__main__":
-    test = EMAlgorithm(3, [2, 3, 5], 57, 25)
-    print(test.L)
+    test = EMAlgorithm(3, [2, 3, 5], 4, 25)
     test.work(1)
-    print(test.L)
+    test.show()
