@@ -1,6 +1,7 @@
 import scipy as scp
 import numpy as np
 import json
+from time import sleep
 
 class EMAlgorithm:
     def __init__(self, NG, NE, NW, K):
@@ -70,6 +71,7 @@ class EMAlgorithm:
         self.initialByKmerTable()
         self.initialVariables()
         while time > 0:
+            print(self.Z)
             self.eStep()
             self.mStep()
             time -= 1
@@ -91,5 +93,4 @@ class EMAlgorithm:
         
 if __name__ == "__main__":
     test = EMAlgorithm(3, [2, 3, 5], 4, 25)
-    test.work(1)
-    test.show()
+    test.work(100) 

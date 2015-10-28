@@ -1,5 +1,3 @@
-import json
-
 class KmerHashing:
     def __init__(self, K):
         self.K = K
