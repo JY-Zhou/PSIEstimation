@@ -1,6 +1,7 @@
 import scipy as scp
 import scipy.optimize as opt
 import numpy as np
+import json
 
 class EMAlgorithm:
     def __init__(self, NG, NE, NW, K):
@@ -10,43 +11,46 @@ class EMAlgorithm:
         self.NW = NW
         self.NA = []
         for g in range(self.NG):
-            self.NA.append(int(np.round(0.5 *(self.NE[g] * self.NE[g] + 5 * self.NE[g] - 4))))
+            self.NA.append(int(np.round(0.5 * (self.NE[g] * self.NE[g] + 5 * self.NE[g] - 4))))
+        self.NX = []
+        for g in range(self.NG):
+            self.NX.append(int(np.round(0.5 * (self.NE[g] * self.NE[g] + self.NE[g]))))
         
         self.L = []
         for g in range(self.NG):
-            self.L.append(np.random.rand(1, self.NE[g]))
+            self.L.append(np.random.rand(1, self.NX[g]))
         
         self.C = []
         for s in range(self.NW):
             self.C.append([])
             for g in range(self.NG):
-                self.C[s].append(np.random.rand(1, self.NE[g]))
+                self.C[s].append(np.random.rand(1, self.NX[g]))
         
         self.Tau = []
         for s in range(self.NW):
             self.Tau.append([])
             for g in range(self.NG):
-                self.Tau[s].append(np.random.rand(1, self.NE[g]))
+                self.Tau[s].append(np.random.rand(1, self.NX[g]))
         
         self.W = np.random.rand(1, self.NW)
         self.Z = np.random.rand(1, self.NG)
         self.X = []
         for g in range(self.NG):
-            self.X.append(np.random.rand(1, self.NE[g]))
+            self.X.append(np.random.rand(1, self.NX[g]))
             
         self.Mu = np.random.rand(self.NW, self.NG)
         self.A = []
         for g in range(self.NG):
-            self.A.append(np.random.rand(self.NA[g], self.NE[g]))
-
+            self.A.append(np.random.rand(self.NA[g], self.NX[g]))
 
         self.initialByKmerTable()
 
-    def initialByKmerTable(self):
-        
+    def initialByKmerTable(self):        
         for s in range(self.NW):
             for g in range(self.NG):
                 self.Tau[s][g] = self.C[s][g]/self.L[g]
+                
+        json.load()
         
         return
     
@@ -91,8 +95,8 @@ class EMAlgorithm:
         X0 = (g, self.X[g].T)
         cons = ({'type': 'ineq', 'fun': lambda X: np.dot(self.A[X[0]], X[1])}, 
                 {'type': 'eq', 'fun': lambda X: np.sum(X[1]) - 1})
-        res = opt.minimize(self.objectFunction, x0 = X0, constraints = cons)
-        self.X[g] = res.x[1]
+        #res = opt.minimize(self.objectFunction, x0 = X0, constraints = cons)
+        #self.X[g] = res.x[1]
         return
     
     def objectFunction(self, X):
@@ -113,18 +117,30 @@ class EMAlgorithm:
         return
     
     def computePSI(self):
+        #=======================================================================
+        # #Unit test for computing PSI
+        # self.X = [np.matrix([[10,7,3,10,7,3,0,0,7,3]])]
+        # self.L = [np.matrix([[1 ,1 ,1,1 ,1 ,1,1,1,1,1]])]
+        # self.NG = 1
+        # self.NX = [10]
+        # self.NE = [4]
+        #=======================================================================
         self.Psi = []
         for g in range(self.NG):
-            self.Psi.append([])
-            for e in range(self.NE[g]):
-                self.Psi[g].append(0.0)
-                    
+            tempPsi = self.X[g] / self.L[g]  
+            sumEx = 0.0
+            sumJu = 0.0
+            for e in range(self.NX[g]):
+                if e < self.NE[g]:
+                    sumEx += tempPsi[0, e]
+                else:
+                    sumJu += tempPsi[0, e]
+                e += 1
+            tempPsi = tempPsi / (sumEx - sumJu)
+            self.Psi.append(tempPsi[0,:self.NE[g]])         
         return
     
-    def show(self):
-        print(self.X)
-        print(self.Z)
-        
 if __name__ == "__main__":
     test = EMAlgorithm(3, [2, 3, 5], 4, 25)
     test.work(100) 
+    print(test.Psi)
