@@ -109,7 +109,7 @@ class EMAlgorithm:
         self.initialByKmerTable()
         self.initialVariables()
         while time > 0:
-            print(self.Z)
+            print(self.Z) 
             self.eStep()
             self.mStep()
             time -= 1
