@@ -61,6 +61,7 @@ class ReferenceGenerator:
             print('', end = '\t', file = exonBoundarydOut)
             for e in range(self.NE[g]):
                 print(ed[e], end = ',', file = exonBoundarydOut)
+            print('', file = exonBoundarydOut)
             
     def outputIsoformFasta(self):
         isoformOut = open('../tricky/isoform.fa', 'w')
