@@ -50,7 +50,6 @@ class EMAlgorithm:
             for g in range(self.NG):
                 self.Tau[s][g] = self.C[s][g]/self.L[g]
                 
-        json.load()
         
         return
     
@@ -125,6 +124,7 @@ class EMAlgorithm:
         # self.NX = [10]
         # self.NE = [4]
         #=======================================================================
+               
         self.Psi = []
         for g in range(self.NG):
             tempPsi = self.X[g] / self.L[g]  
@@ -137,7 +137,9 @@ class EMAlgorithm:
                     sumJu += tempPsi[0, e]
                 e += 1
             tempPsi = tempPsi / (sumEx - sumJu)
-            self.Psi.append(tempPsi[0,:self.NE[g]])         
+            self.Psi.append(tempPsi[0,:self.NE[g]].tolist()) 
+        psiFile = open('../output/PsiResult.json', 'w')
+        json.dump(self.Psi, psiFile)
         return
     
 if __name__ == "__main__":
