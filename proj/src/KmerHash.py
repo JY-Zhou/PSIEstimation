@@ -12,7 +12,11 @@ class KmerHash:
     
     def readReads(self, readsFile):
         fileIn = open(readsFile, 'r')
+        proc = 0
         for line in fileIn:
+            if proc % 10000 == 0:
+                print(str(proc) + ' reads processed...')
+            proc += 1
             read = line[:-1]
             st = 0
             while st + self.K <= len(read):
@@ -33,7 +37,7 @@ class KmerHash:
         COL_EXONNUM = 1
         COL_EXONST = 2
         COL_EXONED = 3
-        for line in exonBoundaryIn:
+        for line in exonBoundaryIn:            
             sub = line[:-1].split('\t')
             self.geneBoundary.append([])
             subst = sub[COL_EXONST].split(',')
@@ -56,6 +60,7 @@ class KmerHash:
                 geneSeq += line[:-1]
         genomeIn.close()
         for g in range(self.NG):
+            print('Gene-' + str(g) + ' processed...')
             for e in range(self.NE[g]):
                 id = str(g) + ',' + str(e) + ',' + str(e)
                 st = self.geneBoundary[g][e][0]
@@ -95,4 +100,4 @@ class KmerHash:
     def kmerContribution(self, st, ed, l, r):
         ret = min(l - st + 1, ed - r + 1)
         ret = min(ret, self.readLength - self.K + 1)
-        return ret/float(self.readLength - self.K + 1)
+        return ret / float(self.readLength - self.K + 1)

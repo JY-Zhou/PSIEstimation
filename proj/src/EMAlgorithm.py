@@ -1,24 +1,49 @@
-import scipy as scp
 import scipy.optimize as opt
+import scipy.sparse as spa
 import numpy as np
 import json
 
 class EMAlgorithm:
-    def __init__(self, NG, NE, NW, K):
-        self.NG = NG
-        self.NE = NE
-        self.K = K
-        self.NW = NW
-        self.NA = []
-        for g in range(self.NG):
-            self.NA.append(int(np.round(0.5 * (self.NE[g] * self.NE[g] + 5 * self.NE[g] - 4))))
+    def __init__(self, kmerHasher):
+        self.NG = kmerHasher.NG
+        self.NE = kmerHasher.NE
+        self.K = kmerHasher.K
+        self.NW = kmerHasher.NW
+        self.readLength = kmerHasher.readLength
+        
         self.NX = []
         for g in range(self.NG):
             self.NX.append(int(np.round(0.5 * (self.NE[g] * self.NE[g] + self.NE[g]))))
         
         self.L = []
         for g in range(self.NG):
-            self.L.append(np.random.rand(1, self.NX[g]))
+            self.L.append(np.zeros((1, self.NX[g])))
+        for g in range(self.NG):
+            col = 0
+            for e in range(self.NE[g]):
+                st = kmerHasher.geneBoundary[g][e][0]
+                ed = kmerHasher.geneBoundary[g][e][1] + 1
+                self.L[g][0, col] = ed - st - self.K + 1
+                col += 1
+            for ei in range(self.NE[g]):
+                ej = ei + 1
+                while ej < self.NE[g]:
+                    self.L[g][0, col] = 2 * self.readLength - 2 - self.K + 1
+                    ej += 1
+                    col += 1
+        
+        
+        
+        
+        
+        
+                    
+        self.NA = []
+        for g in range(self.NG):
+            self.NA.append(int(np.round(0.5 * (self.NE[g] * self.NE[g] + 5 * self.NE[g] - 4))))
+
+        
+
         
         self.C = []
         for s in range(self.NW):
@@ -50,7 +75,6 @@ class EMAlgorithm:
             for g in range(self.NG):
                 self.Tau[s][g] = self.C[s][g]/self.L[g]
                 
-        
         return
     
     def initialVariables(self):
@@ -107,8 +131,12 @@ class EMAlgorithm:
     def work(self, time):
         self.initialByKmerTable()
         self.initialVariables()
+        proc = 0
         while time > 0:
-            print(self.Z) 
+            if proc % 10 == 0:
+                print(str(proc) + ' iteration processed...')
+            proc += 1
+            #print(self.Z) 
             self.eStep()
             self.mStep()
             time -= 1
@@ -141,8 +169,3 @@ class EMAlgorithm:
         psiFile = open('../output/PsiResult.json', 'w')
         json.dump(self.Psi, psiFile)
         return
-    
-if __name__ == "__main__":
-    test = EMAlgorithm(3, [2, 3, 5], 4, 25)
-    test.work(100) 
-    print(test.Psi)

@@ -7,5 +7,5 @@ readsFile = r'../input/reads.fq'
 K = 25
 readLength = 75
 kmerHasher = KmerHash(K, readLength, genomeFile, exonBoundaryFile, readsFile)
-solver = EMAlgorithm()
-solver.work()
+solver = EMAlgorithm(kmerHasher)
+solver.work(100)

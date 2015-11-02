@@ -17,7 +17,9 @@ def showPlot(exon):
                 dist[l] += 1
         l += 1
         r += 1
-    print(dist)
+    for x in dist:
+        print(x, end = '')
+    print('')
     
     stop = False
     while not stop:
