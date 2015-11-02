@@ -1,3 +1,4 @@
+import scipy as scp
 import scipy.optimize as opt
 import scipy.sparse as spa
 import numpy as np
@@ -14,6 +15,9 @@ class EMAlgorithm:
         self.NX = []
         for g in range(self.NG):
             self.NX.append(int(np.round(0.5 * (self.NE[g] * self.NE[g] + self.NE[g]))))
+        self.NXSUM = [0]
+        for g in range(self.NG):
+            self.NXSUM.append(self.NX[g] + self.NXSUM[g])
         
         self.L = []
         for g in range(self.NG):
@@ -32,59 +36,51 @@ class EMAlgorithm:
                     ej += 1
                     col += 1
         
+        self.Tau = spa.lil_matrix((self.NW, self.NXSUM[self.NG]))   
+        self.W = np.zeros((1, self.NW))
+        row = 0
+        for kmer in kmerHasher.kmerTable:
+            self.W[0, row] = kmerHasher.kmerTable[kmer][0]
+            contribution = kmerHasher.kmerTable[kmer][1]
+            for loc in contribution:
+                sub = loc.split(',')
+                g = int(sub[0])
+                ei = int(sub[1])
+                ej = int(sub[2])
+                e = 0
+                if ei == ej:
+                    e = ei
+                else:
+                    e = self.NE[g] + (2*self.NE[g] - ei - 3) * ei / 2 + ej - 1
+                col = e + self.NXSUM[g]                
+                self.Tau[row, col] = contribution[loc] / self.L[g][0, e]
+            row += 1        
         
         
         
         
         
-                    
+            
         self.NA = []
         for g in range(self.NG):
             self.NA.append(int(np.round(0.5 * (self.NE[g] * self.NE[g] + 5 * self.NE[g] - 4))))
-
-        
-
-        
-        self.C = []
-        for s in range(self.NW):
-            self.C.append([])
-            for g in range(self.NG):
-                self.C[s].append(np.random.rand(1, self.NX[g]))
-        
-        self.Tau = []
-        for s in range(self.NW):
-            self.Tau.append([])
-            for g in range(self.NG):
-                self.Tau[s].append(np.random.rand(1, self.NX[g]))
-        
-        self.W = np.random.rand(1, self.NW)
-        self.Z = np.random.rand(1, self.NG)
-        self.X = []
-        for g in range(self.NG):
-            self.X.append(np.random.rand(1, self.NX[g]))
-            
-        self.Mu = np.random.rand(self.NW, self.NG)
         self.A = []
         for g in range(self.NG):
             self.A.append(np.random.rand(self.NA[g], self.NX[g]))
 
-        self.initialByKmerTable()
-
-    def initialByKmerTable(self):        
-        for s in range(self.NW):
-            for g in range(self.NG):
-                self.Tau[s][g] = self.C[s][g]/self.L[g]
-                
-        return
-    
     def initialVariables(self):
-        return        
+        self.Z = np.random.rand(1, self.NG)
+        self.X = []
+        for g in range(self.NG):
+            self.X.append(np.random.rand(1, self.NX[g]))
+        self.Mu = np.random.rand(self.NW, self.NG)
+        return
     
     def eStep(self):
         for s in range(self.NW):
             tot = 0.0
             for g in range(self.NG):
-                self.Mu[s, g] = self.Z[0, g] * np.dot(self.C[s][g]/self.L[g], self.X[g].T)[0, 0]
+                self.Mu[s, g] = self.Z[0, g] * self.Tau[s,self.NXSUM[g]:self.NXSUM[g+1]].dot(self.X[g].T)[0, 0]
                 tot += self.Mu[s, g]
             for g in range(self.NG):
                 self.Mu[s, g] /= tot 
@@ -98,7 +94,7 @@ class EMAlgorithm:
         for g in range(self.NG):
             self.Z[0, g] /= tot            
         for g in range(self.NG):
-            self.optimizeQ(g)        
+            self.optimizeQ(g)
         return
     
     def optimizeQ(self, g):
@@ -129,7 +125,6 @@ class EMAlgorithm:
         return res
     
     def work(self, time):
-        self.initialByKmerTable()
         self.initialVariables()
         proc = 0
         while time > 0:
