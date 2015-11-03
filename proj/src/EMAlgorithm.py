@@ -3,7 +3,6 @@ import scipy.optimize as opt
 import scipy.sparse as spa
 import numpy as np
 import json
-from errno import EIDRM
 
 class EMAlgorithm:
     def __init__(self, kmerHasher):
@@ -13,13 +12,33 @@ class EMAlgorithm:
         self.NW = kmerHasher.NW
         self.readLength = kmerHasher.readLength
         
+        self.initialIndice()
+        self.initialCoefficients(kmerHasher)
+        self.initialConstraints()
+        
+    def initialIndice(self):   
         self.NX = []
         for g in range(self.NG):
             self.NX.append(int(np.round(0.5 * (self.NE[g] * self.NE[g] + self.NE[g]))))
         self.NXSUM = [0]
         for g in range(self.NG):
             self.NXSUM.append(self.NX[g] + self.NXSUM[g])
-        
+            
+        self.MergeIdx = {}
+        self.SplitIdx = []
+        idx = 0
+        for g in range(self.NG):
+            for e in range(self.NE[g]):
+                self.SplitIdx.append((g,e,e))
+                self.MergeIdx[(g,e,e)] = idx
+                idx += 1
+            for ei in range(self.NE[g]):
+                for ej in range(ei + 1, self.NE[g]):
+                    self.SplitIdx.append((g,ei,ej))
+                    self.MergeIdx[(g,ei,ej)] = idx
+                    idx += 1                 
+
+    def initialCoefficients(self, kmerHasher):
         self.L = []
         for g in range(self.NG):
             self.L.append(np.zeros((1, self.NX[g])))
@@ -37,8 +56,9 @@ class EMAlgorithm:
                     ej += 1
                     col += 1
         
-        self.Tau = spa.lil_matrix((self.NW, self.NXSUM[self.NG]))   
+        self.Tau = spa.lil_matrix((self.NW, self.NXSUM[self.NG]))
         self.W = np.zeros((1, self.NW))
+        self.MuNonZero = []
         row = 0
         for kmer in kmerHasher.kmerTable:
             self.W[0, row] = kmerHasher.kmerTable[kmer][0]
@@ -48,118 +68,117 @@ class EMAlgorithm:
                 g = int(sub[0])
                 ei = int(sub[1])
                 ej = int(sub[2])
-                col = self.mergeIndex(g, ei, ej)                                
+                col = self.MergeIdx[(g, ei, ej)]
                 self.Tau[row, col] = contribution[loc] / self.L[g][0, col - self.NXSUM[g]]
+                self.MuNonZero.append((row, g))
             row += 1
             
-        for x in self.Tau:
-            print(x)
-            
+    def initialConstraints(self):
         self.NA = []
         for g in range(self.NG):
             self.NA.append(int(np.round(0.5 * (self.NE[g] * self.NE[g] + 5 * self.NE[g] - 4))))
+            
         self.A = []
         for g in range(self.NG):
             self.A.append(np.zeros((self.NA[g], self.NX[g])))
         for g in range(self.NG):
-            row = 0
-            
-            #...Update A...
-            
-    def mergeIndex(self, g, ei, ej):
-        e = 0
-        if ei == ej:
-            e = ei
-        else:
-            e = self.NE[g] + (2*self.NE[g] - ei - 3) * ei / 2 + ej - 1            
-        return e + self.NXSUM[g]
-    
-    def splitIndex(self, col):
-        #...Split Index...
-        #return (g, ei, ej)
-        return
+            row = 0            
+            #
+            NRightJunc = self.NE[g] - 1
+            l = self.NE[g]
+            r = l + self.NE[g] - 1
+            while row < NRightJunc:
+                self.A[g][row, row] = 1
+                for i in range(l, r):
+                    self.A[g][row, i] = -1
+                l = r
+                r = r + self.NE[g] - (row + 2)
+                row += 1
+            #
+            NLeftJunc = NRightJunc + self.NE[g] - 1
+            while row < NLeftJunc:
+                self.A[g][row, row - NRightJunc + 1] = 1
+                l = self.NE[g]
+                r = row - NRightJunc
+                i = 1
+                while r >= 0:
+                    self.A[g][row, l + r] = -1
+                    l += self.NE[g] - i
+                    i += 1
+                    r -= 1     
+                row += 1                
+            #
+            NPsi = NLeftJunc + self.NE[g]
+            while row < NPsi:
+                for i in range(self.NX[g]):
+                    if i >= self.NE[g]:
+                        self.A[g][row, i] = -1 
+                    elif i != row - NLeftJunc:
+                        self.A[g][row, i] = 1
+                row += 1                
+            #
+            NBeta = NPsi + self.NE[g] * (self.NE[g] - 1) / 2
+            while row < NBeta:
+                self.A[g][row, row - NPsi + self.NE[g]] = 1
+                row += 1
+        #print(self.A[0])
 
     def initialVariables(self):
         self.Z = np.random.rand(1, self.NG)
         self.X = []
         for g in range(self.NG):
-            self.X.append(np.random.rand(1, self.NX[g]))
+            self.X.append(np.random.rand(self.NX[g], 1))
         self.Mu = spa.lil_matrix((self.NW, self.NG))
         return
     
     def eStep(self):
-        for s in range(self.NW):
-            tot = 0.0
-            for g in range(self.NG):
-                self.Mu[s, g] = self.Z[0, g] * self.Tau[s,self.NXSUM[g]:self.NXSUM[g+1]].dot(self.X[g].T)[0, 0]
-                tot += self.Mu[s, g]
-            for g in range(self.NG):
-                self.Mu[s, g] /= tot 
+        tot = []
+        for g in range(self.NG):
+            tot.append(0)
+        for loca in self.MuNonZero:
+            s = loca[0]
+            g = loca[1]
+            self.Mu[s, g] = self.Z[0, g] * self.Tau[s, self.NXSUM[g]:self.NXSUM[g+1]].dot(self.X[g])[0, 0]
+            tot[g] += self.Mu[s, g]
+        for loca in self.MuNonZero:
+            s = loca[0]
+            g = loca[1]
+            self.Mu[s, g] /= tot[g]
         return
     
     def mStep(self):
         tot = 0.0
         for g in range(self.NG):
-            self.Z[0, g] = np.dot(self.W, self.Mu[:,g])
+            self.Z[0, g] = self.Mu[:,g].T.dot(self.W.T)
             tot += self.Z[0, g]
         for g in range(self.NG):
-            self.Z[0, g] /= tot            
+            self.Z[0, g] /= tot
+
         for g in range(self.NG):
             self.optimizeQ(g)
         return
     
     def optimizeQ(self, g):
-        #=======================================================================
-        # print(np.shape(self.A[g]))
-        # I = (np.dot(self.A[g], self.X[g].T) == 0.)
-        # idxA1 = []
-        # for r in range(self.NA[g]):
-        #     if I[r, 0]:
-        #         idxA1.append(r)
-        # A1 = self.A[g][idxA1,:]
-        # E = np.ones((1, self.NE[g]))
-        # print(A1)
-        # print(E)
-        # input()
-        #=======================================================================
-        X0 = (g, self.X[g].T)
-        cons = ({'type': 'ineq', 'fun': lambda X: np.dot(self.A[X[0]], X[1])}, 
-                {'type': 'eq', 'fun': lambda X: np.sum(X[1]) - 1})
-        #res = opt.minimi
-        ze(self.objectFunction, x0 = X0, constraints = cons)
-        #self.X[g] = res.x[1]
+        # wait
         return
     
     def objectFunction(self, X):
-        res = 0.0
-        for s in range(self.NW):
-            res += self.W[s] * self.Mu[s][X[0]] * np.log(self.Tau[s][X[0]], X[1])
-        return res
+        # wait
+        return 
     
     def work(self, time):
         self.initialVariables()
         proc = 0
-        while time > 0:
+        while proc < time:
             if proc % 10 == 0:
                 print(str(proc) + ' iteration processed...')
             proc += 1
-            #print(self.Z) 
             self.eStep()
             self.mStep()
-            time -= 1
         self.computePSI()
         return
     
     def computePSI(self):
-        #=======================================================================
-        # #Unit test for computing PSI
-        # self.X = [np.matrix([[10,7,3,10,7,3,0,0,7,3]])]
-        # self.L = [np.matrix([[1 ,1 ,1,1 ,1 ,1,1,1,1,1]])]
-        # self.NG = 1
-        # self.NX = [10]
-        # self.NE = [4]
-        #=======================================================================
-               
         self.Psi = []
         for g in range(self.NG):
             tempPsi = self.X[g] / self.L[g]  

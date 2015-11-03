@@ -101,3 +101,4 @@ class KmerHash:
         ret = min(l - st + 1, ed - r + 1)
         ret = min(ret, self.readLength - self.K + 1)
         return ret / float(self.readLength - self.K + 1)
+    

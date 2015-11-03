@@ -1,3 +1,11 @@
+import numpy as np
+
+print('!')
+a = np.random.rand(100,10000000)
+print('!!')
+s = a.T
+print('!!!')
+input()
 def showPlot(exon):
     print('Corresponding Reads')
     for x in exon:
