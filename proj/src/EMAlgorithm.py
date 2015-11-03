@@ -3,6 +3,7 @@ import scipy.optimize as opt
 import scipy.sparse as spa
 import numpy as np
 import json
+from errno import EIDRM
 
 class EMAlgorithm:
     def __init__(self, kmerHasher):
@@ -47,33 +48,43 @@ class EMAlgorithm:
                 g = int(sub[0])
                 ei = int(sub[1])
                 ej = int(sub[2])
-                e = 0
-                if ei == ej:
-                    e = ei
-                else:
-                    e = self.NE[g] + (2*self.NE[g] - ei - 3) * ei / 2 + ej - 1
-                col = e + self.NXSUM[g]                
-                self.Tau[row, col] = contribution[loc] / self.L[g][0, e]
-            row += 1        
-        
-        
-        
-        
-        
+                col = self.mergeIndex(g, ei, ej)                                
+                self.Tau[row, col] = contribution[loc] / self.L[g][0, col - self.NXSUM[g]]
+            row += 1
+            
+        for x in self.Tau:
+            print(x)
             
         self.NA = []
         for g in range(self.NG):
             self.NA.append(int(np.round(0.5 * (self.NE[g] * self.NE[g] + 5 * self.NE[g] - 4))))
         self.A = []
         for g in range(self.NG):
-            self.A.append(np.random.rand(self.NA[g], self.NX[g]))
+            self.A.append(np.zeros((self.NA[g], self.NX[g])))
+        for g in range(self.NG):
+            row = 0
+            
+            #...Update A...
+            
+    def mergeIndex(self, g, ei, ej):
+        e = 0
+        if ei == ej:
+            e = ei
+        else:
+            e = self.NE[g] + (2*self.NE[g] - ei - 3) * ei / 2 + ej - 1            
+        return e + self.NXSUM[g]
+    
+    def splitIndex(self, col):
+        #...Split Index...
+        #return (g, ei, ej)
+        return
 
     def initialVariables(self):
         self.Z = np.random.rand(1, self.NG)
         self.X = []
         for g in range(self.NG):
             self.X.append(np.random.rand(1, self.NX[g]))
-        self.Mu = np.random.rand(self.NW, self.NG)
+        self.Mu = spa.lil_matrix((self.NW, self.NG))
         return
     
     def eStep(self):
@@ -114,7 +125,8 @@ class EMAlgorithm:
         X0 = (g, self.X[g].T)
         cons = ({'type': 'ineq', 'fun': lambda X: np.dot(self.A[X[0]], X[1])}, 
                 {'type': 'eq', 'fun': lambda X: np.sum(X[1]) - 1})
-        #res = opt.minimize(self.objectFunction, x0 = X0, constraints = cons)
+        #res = opt.minimi
+        ze(self.objectFunction, x0 = X0, constraints = cons)
         #self.X[g] = res.x[1]
         return
     
