@@ -170,7 +170,7 @@ class EMAlgorithm:
         self.initialVariables()
         proc = 0
         while proc < time:
-            if proc % 10 == 0:
+            if proc % 1 == 0:
                 print(str(proc) + ' iteration processed...')
             proc += 1
             self.eStep()
