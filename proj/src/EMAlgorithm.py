@@ -125,9 +125,22 @@ class EMAlgorithm:
 
     def initialVariables(self):
         self.Z = np.random.rand(1, self.NG)
+        tot = 0.0
+        for g in range(self.NG):
+            tot += self.Z[0, g]
+        for g in range(self.NG):
+            self.Z[0, g] /= tot
+        
         self.X = []
         for g in range(self.NG):
             self.X.append(np.random.rand(self.NX[g], 1))
+            tot = 0.0
+            for e in range(self.NX[g]):
+                tot += self.X[g][e, 0]
+            for e in range(self.NX[g]):
+                self.X[g][e, 0] /= tot
+                            
+            
         self.Mu = spa.lil_matrix((self.NW, self.NG))
         return
     
@@ -160,9 +173,20 @@ class EMAlgorithm:
     
     def optimizeQ(self, g):
         print(self.Mu[:,g].multiply(scp.log(self.Tau[:,self.NXSUM[g]:self.NXSUM[g+1]].dot(self.X[g]))).T.dot(self.W.T)[0,0])
-        res = opt.minimize(lambda X: self.Mu[:,g].multiply(scp.log(self.Tau[:,self.NXSUM[g]:self.NXSUM[g+1]].dot(X))).T.dot(self.W.T)[0,0], self.X[g])
+        res = opt.minimize(fun = lambda X: -self.Mu[:,g].multiply(scp.log(self.Tau[:,self.NXSUM[g]:self.NXSUM[g+1]].dot(X))).T.dot(self.W.T)[0,0],
+                           x0 = self.X[g],
+                           bounds = [(0, 1) for i in range(self.NX[g])],
+                           constraints = ({'type':'ineq', 'fun':lambda X: self.A[g].dot(X)},
+                                          {'type':'eq', 'fun':lambda X: np.ones((1, self.NX[g])).dot(X) - 1}))
+
         print(res)
+        input()
+        for i in range(self.NX[g]):
+            self.X[g][i, 0] = res.x[i]
         return
+    
+    def logarithm(self, X):
+        return         
     
     def work(self, time):
         self.initialVariables()
