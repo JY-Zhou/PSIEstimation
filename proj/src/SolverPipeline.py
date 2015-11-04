@@ -8,4 +8,4 @@ K = 25
 readLength = 75
 kmerHasher = KmerHash(K, readLength, genomeFile, exonBoundaryFile, readsFile)
 solver = EMAlgorithm(kmerHasher)
-solver.work(100)
+solver.work(3)
