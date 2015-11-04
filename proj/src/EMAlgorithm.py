@@ -159,12 +159,10 @@ class EMAlgorithm:
         return
     
     def optimizeQ(self, g):
-        # wait
+        print(self.Mu[:,g].multiply(scp.log(self.Tau[:,self.NXSUM[g]:self.NXSUM[g+1]].dot(self.X[g]))).T.dot(self.W.T)[0,0])
+        res = opt.minimize(lambda X: self.Mu[:,g].multiply(scp.log(self.Tau[:,self.NXSUM[g]:self.NXSUM[g+1]].dot(X))).T.dot(self.W.T)[0,0], self.X[g])
+        print(res)
         return
-    
-    def objectFunction(self, X):
-        # wait
-        return 
     
     def work(self, time):
         self.initialVariables()
