@@ -140,7 +140,6 @@ class EMAlgorithm:
         for g in range(self.NG):
             self.X.append(np.random.rand(1, self.NX[g]))
             while not np.all(self.A[g].dot(self.X[g].T) > -self.EPS):
-                #self.X.append(np.random.rand(self.NX[g], 1))
                 self.X[g] = np.random.rand(1, self.NX[g])
                 for e in range(self.NE[g]):
                     self.X[g][0, e] *= 2
@@ -155,17 +154,21 @@ class EMAlgorithm:
     
     def eStep(self):
         tot = []
-        for g in range(self.NG):
+        for s in range(self.NW):
             tot.append(0)
         for loca in self.MuNonZero:
             s = loca[0]
             g = loca[1]
             self.Mu[s, g] = self.Z[0, g] * self.Tau[s, self.NXSUM[g]:self.NXSUM[g+1]].dot(self.X[g].T)[0, 0]
-            tot[g] += self.Mu[s, g]
+            tot[s] += self.Mu[s, g]
         for loca in self.MuNonZero:
             s = loca[0]
             g = loca[1]
-            self.Mu[s, g] /= tot[g]
+            self.Mu[s, g] /= tot[s]
+        
+        for i in range(self.NW):
+            print(str(i) + ': ' + str(tot[i]))
+        print(self.Mu)
         return
     
     def mStep(self):
@@ -181,41 +184,46 @@ class EMAlgorithm:
         return
     
     def optimizeQ(self, g):
-        print(self.Mu[:,g].multiply(scp.log(self.Tau[:,self.NXSUM[g]:self.NXSUM[g+1]].dot(self.X[g].T))).T.dot(self.W.T)[0,0])
-        print(self.A[g].dot(self.X[g].T) > -self.EPS)
-        print(np.ones((1, self.NX[g])).dot(self.X[g].T))
-        print(self.L[g])
+        y1 = self.objectFunction(self.X[g], g)
+        print('F = ' + str(y1))
         
-        print('+++++++++++++++++++++++++++++++++')
         GD = [1260, 1460, 1162, 1860, 1240, 1, 1, 868, 372, 868]
         tot = 0.0
         for i in range(self.NX[g]):
             tot += GD[i]
         for i in range(self.NX[g]):
             GD[i] /= tot
+        Test = np.random.rand(1, self.NX[g])
         for i in range(self.NX[g]):
-            self.X[g][0, i] = GD[i]
-        print(self.A[g].dot(self.X[g].T) > -self.EPS)
-        print(np.ones((1, self.NX[g])).dot(self.X[g].T))
-        print(self.X)
-        print(self.Mu[:,g].multiply(scp.log(self.Tau[:,self.NXSUM[g]:self.NXSUM[g+1]].dot(self.X[g].T))).T.dot(self.W.T)[0,0])
-        self.computePSI()
-        print(self.Psi)
-        
-    
-        
-        
-         
-        
-        res = opt.minimize(fun = lambda X: -self.Mu[:,g].multiply(scp.log(self.Tau[:,self.NXSUM[g]:self.NXSUM[g+1]].dot(X))).T.dot(self.W.T)[0,0],
-                           x0 = self.X[g].T,
+            Test[0, i] = GD[i]
+        print(self.Mu[:,g].multiply(scp.log(self.Tau[:,self.NXSUM[g]:self.NXSUM[g+1]].dot(Test.T))).T.dot(self.W.T)[0,0])
+
+               
+        res = opt.minimize(fun = lambda X: -self.Mu[:,g].multiply(scp.log(self.Tau[:,self.NXSUM[g]:self.NXSUM[g+1]].dot(X.T))).T.dot(self.W.T)[0,0],
+                           x0 = self.X[g],
                            bounds = [(0, 1) for i in range(self.NX[g])],
                            constraints = ({'type':'ineq', 'fun':lambda X: self.A[g].dot(X)},
                                           {'type':'eq', 'fun':lambda X: np.ones((1, self.NX[g])).dot(X) - 1}))
-
+        print(res)
+        input()
         for i in range(self.NX[g]):
             self.X[g][0, i] = res.x[i]
         return
+    
+    def objectFunction(self, X, g):
+        return self.Mu[:,g].multiply(np.log(self.Tau[:,self.NXSUM[g]:self.NXSUM[g+1]].dot(X.T))).T.dot(self.W.T)[0,0]
+    
+    def objectFunction2(self, X, g):
+        ret = 0.0
+        for s in range(self.NW):
+            temp = 0.0
+            for e in range(self.NX[g]):
+                ttt = X[0, e] * self.Tau[s, self.NXSUM[g] + e]
+                temp += ttt
+            #print(temp)
+            temp = self.W[0, s] * self.Mu[s, g] * np.log(temp)
+            ret += temp
+        return ret
     
     def work(self, time):
         self.initialVariables()
@@ -224,8 +232,10 @@ class EMAlgorithm:
             if proc % 1 == 0:
                 print(str(proc) + ' iteration processed...')
             proc += 1
-            print('z = ' + str(self.Z))
-            print('x = ' + str(self.X))
+            #===================================================================
+            # print('z = ' + str(self.Z))
+            # print('x = ' + str(self.X))
+            #===================================================================
             self.eStep()
             self.mStep()
         self.computePSI()
