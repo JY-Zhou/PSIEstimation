@@ -65,6 +65,8 @@ class EMAlgorithm:
         for kmer in kmerHasher.kmerTable:
             self.W[0, row] = kmerHasher.kmerTable[kmer][0]
             contribution = kmerHasher.kmerTable[kmer][1]
+            
+            gSet = {}
             for loc in contribution:
                 sub = loc.split(',')
                 g = int(sub[0])
@@ -72,13 +74,15 @@ class EMAlgorithm:
                 ej = int(sub[2])
                 col = self.MergeIdx[(g, ei, ej)]
                 self.Tau[row, col] = contribution[loc] / self.L[g][0, col - self.NXSUM[g]]
+                gSet[g] = True
+                
+            for g in gSet:
                 self.MuNonZero.append((row, g))
             row += 1
             
     def initialConstraints(self):
         self.NA = []
         for g in range(self.NG):
-            #self.NA.append(int(np.round(0.5 * (self.NE[g] * self.NE[g] + 5 * self.NE[g] - 4))))
             self.NA.append(3 * self.NE[g] - 2)
             
         self.A = []
@@ -86,7 +90,7 @@ class EMAlgorithm:
             self.A.append(np.zeros((self.NA[g], self.NX[g])))
         for g in range(self.NG):
             row = 0            
-            #
+            
             NRightJunc = self.NE[g] - 1
             l = self.NE[g]
             r = l + self.NE[g] - 1
@@ -97,7 +101,7 @@ class EMAlgorithm:
                 l = r
                 r = r + self.NE[g] - (row + 2)
                 row += 1
-            #
+            
             NLeftJunc = NRightJunc + self.NE[g] - 1
             while row < NLeftJunc:
                 self.A[g][row, row - NRightJunc + 1] = 1
@@ -110,7 +114,7 @@ class EMAlgorithm:
                     i += 1
                     r -= 1     
                 row += 1                
-            #
+            
             NPsi = NLeftJunc + self.NE[g]
             while row < NPsi:
                 for i in range(self.NX[g]):
@@ -119,14 +123,6 @@ class EMAlgorithm:
                     elif i != row - NLeftJunc:
                         self.A[g][row, i] = 1
                 row += 1                
-            #
-            #===================================================================
-            # NBeta = NPsi + self.NE[g] * (self.NE[g] - 1) / 2
-            # while row < NBeta:
-            #     self.A[g][row, row - NPsi + self.NE[g]] = 1
-            #     row += 1
-            #===================================================================
-        #print(self.A[0])
 
     def initialVariables(self):
         self.Z = np.random.rand(1, self.NG)
@@ -142,7 +138,7 @@ class EMAlgorithm:
             while not np.all(self.A[g].dot(self.X[g].T) > -self.EPS):
                 self.X[g] = np.random.rand(1, self.NX[g])
                 for e in range(self.NE[g]):
-                    self.X[g][0, e] *= 2
+                    self.X[g][0, e] *= 20
                 tot = 0.0
                 for e in range(self.NX[g]):
                     tot += self.X[g][0, e]
@@ -165,10 +161,6 @@ class EMAlgorithm:
             s = loca[0]
             g = loca[1]
             self.Mu[s, g] /= tot[s]
-        
-        for i in range(self.NW):
-            print(str(i) + ': ' + str(tot[i]))
-        print(self.Mu)
         return
     
     def mStep(self):
@@ -184,28 +176,13 @@ class EMAlgorithm:
         return
     
     def optimizeQ(self, g):
-        y1 = self.objectFunction(self.X[g], g)
-        print('F = ' + str(y1))
-        
-        GD = [1260, 1460, 1162, 1860, 1240, 1, 1, 868, 372, 868]
-        tot = 0.0
-        for i in range(self.NX[g]):
-            tot += GD[i]
-        for i in range(self.NX[g]):
-            GD[i] /= tot
-        Test = np.random.rand(1, self.NX[g])
-        for i in range(self.NX[g]):
-            Test[0, i] = GD[i]
-        print(self.Mu[:,g].multiply(scp.log(self.Tau[:,self.NXSUM[g]:self.NXSUM[g+1]].dot(Test.T))).T.dot(self.W.T)[0,0])
-
-               
+        print(self.objectFunction(self.X[g], g))
         res = opt.minimize(fun = lambda X: -self.Mu[:,g].multiply(scp.log(self.Tau[:,self.NXSUM[g]:self.NXSUM[g+1]].dot(X.T))).T.dot(self.W.T)[0,0],
                            x0 = self.X[g],
                            bounds = [(0, 1) for i in range(self.NX[g])],
-                           constraints = ({'type':'ineq', 'fun':lambda X: self.A[g].dot(X)},
-                                          {'type':'eq', 'fun':lambda X: np.ones((1, self.NX[g])).dot(X) - 1}))
+                           constraints = ({'type':'ineq', 'fun':lambda X: self.A[g].dot(X.T)},
+                                          {'type':'eq', 'fun':lambda X: np.ones((1, self.NX[g])).dot(X.T) - 1}))
         print(res)
-        input()
         for i in range(self.NX[g]):
             self.X[g][0, i] = res.x[i]
         return
@@ -213,29 +190,42 @@ class EMAlgorithm:
     def objectFunction(self, X, g):
         return self.Mu[:,g].multiply(np.log(self.Tau[:,self.NXSUM[g]:self.NXSUM[g+1]].dot(X.T))).T.dot(self.W.T)[0,0]
     
-    def objectFunction2(self, X, g):
-        ret = 0.0
-        for s in range(self.NW):
-            temp = 0.0
-            for e in range(self.NX[g]):
-                ttt = X[0, e] * self.Tau[s, self.NXSUM[g] + e]
-                temp += ttt
-            #print(temp)
-            temp = self.W[0, s] * self.Mu[s, g] * np.log(temp)
-            ret += temp
-        return ret
+    def likelihoodFunction(self):
+        temp = np.zeros((self.NW, 1))
+        for g in range(self.NG):
+            temp += self.Z[0, g] * self.Tau[:,self.NXSUM[g]:self.NXSUM[g+1]].dot(self.X[g].T)
+        temp = scp.log(temp)
+        return self.W.dot(temp)
     
     def work(self, time):
         self.initialVariables()
+        
+        print('likelihood')
+        print(self.likelihoodFunction())
+        print(self.X)
+        GD = [10, 10, 7, 10, 10, 0, 0, 7, 3, 7]
+        for i in range(self.NX[0]):
+            GD[i] *= self.L[0][0, i]
+        print(GD)
+        tot = 0.0
+        for i in range(self.NX[0]):
+            tot += GD[i]
+        for i in range(self.NX[0]):
+            self.X[0][0, i] = GD[i] / tot
+        print(self.likelihoodFunction())
+        print(self.X)
+        for i in range(self.NX[0]):
+            tot = 0.0
+            for s in range(self.NW):
+                tot += self.Tau[s, i]
+            print(str(i) + ' ' + str(tot))
+        
+        
         proc = 0
         while proc < time:
             if proc % 1 == 0:
                 print(str(proc) + ' iteration processed...')
             proc += 1
-            #===================================================================
-            # print('z = ' + str(self.Z))
-            # print('x = ' + str(self.X))
-            #===================================================================
             self.eStep()
             self.mStep()
         self.computePSI()
