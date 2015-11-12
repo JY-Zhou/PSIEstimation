@@ -75,14 +75,21 @@ class KmerHash:
                 st = self.geneBoundary[g][e][0]
                 ed = self.geneBoundary[g][e][1] + 1
                 l = st
+                tot = 0.0
                 while l + self.K <= ed:
                     kmer = geneSeq[l:l+self.K]
                     if kmer in self.kmerTable:
                         contribution = self.kmerContribution(st, ed, l, l + self.K, ed - st)
+                        tot += contribution
                         if id in self.kmerTable[kmer][1]:
                             self.kmerTable[kmer][1][id] += contribution
                         else:
                             self.kmerTable[kmer][1][id] = contribution
+                    l += 1
+                l = st
+                while l + self.K <= ed:
+                    kmer = geneSeq[l:l+self.K]
+                    self.kmerTable[kmer][1][id] /= tot
                     l += 1
                     
             for ei in range(self.NE[g]):
@@ -93,14 +100,21 @@ class KmerHash:
                     junction = geneSeq[edi - self.readLength + 1:edi] + geneSeq[stj:stj + self.readLength - 1]
                     
                     l = 0
+                    tot = 0.0
                     while l + self.K <= 2*self.readLength - 2:
                         kmer = junction[l:l + self.K]
                         if kmer in self.kmerTable:
                             contribution = self.kmerContribution(0, 2*self.readLength - 2, l, l + self.K, 2*self.readLength - 2)
+                            tot += contribution
                             if id in self.kmerTable[kmer][1]:
                                 self.kmerTable[kmer][1][id] += contribution 
                             else:
                                 self.kmerTable[kmer][1][id] = contribution
+                        l += 1
+                    l = 0
+                    while l + self.K <= 2*self.readLength - 2:
+                        kmer = junction[l:l+self.K]
+                        self.kmerTable[kmer][1][id] /= tot
                         l += 1
         return
     
@@ -108,6 +122,5 @@ class KmerHash:
         ret = min(l - st + 1, ed - r + 1)
         ret = min(ret, self.readLength - self.K + 1)
         ret = min(ret, L - self.readLength + 1)
-        #return ret / float(self.readLength - self.K + 1)
         return ret
     

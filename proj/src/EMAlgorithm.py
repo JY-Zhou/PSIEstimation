@@ -197,9 +197,12 @@ class EMAlgorithm:
         temp = scp.log(temp)
         return self.W.dot(temp)
     
+    def optimizeLikelihood(self):
+        return
+    
     def work(self, time):
         self.initialVariables()
-        
+        self.optimizeLikelihood()
         #=======================================================================
         # print('likelihood')
         # print(self.likelihoodFunction())
@@ -223,14 +226,16 @@ class EMAlgorithm:
         #=======================================================================
         
         
-        proc = 0
-        while proc < time:
-            if proc % 1 == 0:
-                print(str(proc) + ' iteration processed...')
-            proc += 1
-            self.eStep()
-            self.mStep()
-        self.computePSI()
+        #=======================================================================
+        # proc = 0
+        # while proc < time:
+        #     if proc % 1 == 0:
+        #         print(str(proc) + ' iteration processed...')
+        #     proc += 1
+        #     self.eStep()
+        #     self.mStep()
+        # self.computePSI()
+        #=======================================================================
         return
     
     def computePSI(self):
