@@ -19,12 +19,12 @@ class KmerHash:
             proc += 1
             read = line[:-1]
             st = 0
-            while st + self.K <= len(read):
+            while st + self.K <= self.readLength:
                 kmer = read[st:st+self.K]
-                if kmer in self.kmerTable.keys():
+                if kmer in self.kmerTable:
                     self.kmerTable[kmer] += 1
                 else:
-                    self.kmerTable[kmer] = 0
+                    self.kmerTable[kmer] = 1
                 st += 1
         self.NW = len(self.kmerTable)
         for kmer in self.kmerTable:
@@ -59,6 +59,15 @@ class KmerHash:
             if '>' not in line:
                 geneSeq += line[:-1]
         genomeIn.close()
+        
+        self.temp = []
+        self.contri = {}
+        l = 0
+        while l + self.K <= len(geneSeq):
+            self.temp.append(geneSeq[l:l+self.K])
+            self.contri[geneSeq[l:l+self.K]] = l
+            l += 1
+        
         for g in range(self.NG):
             print('Gene-' + str(g) + ' processed...')
             for e in range(self.NE[g]):
@@ -69,7 +78,7 @@ class KmerHash:
                 while l + self.K <= ed:
                     kmer = geneSeq[l:l+self.K]
                     if kmer in self.kmerTable:
-                        contribution = self.kmerContribution(st, ed, l, l + self.K)
+                        contribution = self.kmerContribution(st, ed, l, l + self.K, ed - st)
                         if id in self.kmerTable[kmer][1]:
                             self.kmerTable[kmer][1][id] += contribution
                         else:
@@ -79,26 +88,26 @@ class KmerHash:
             for ei in range(self.NE[g]):
                 for ej in range(ei + 1, self.NE[g]):
                     id = str(g) + ',' + str(ei) + ',' + str(ej)
-                    sti = self.geneBoundary[g][ei][0]
                     edi = self.geneBoundary[g][ei][1] + 1
                     stj = self.geneBoundary[g][ej][0]
-                    edj = self.geneBoundary[g][ej][1] + 1
-                    l = edi - self.K + 1
-                    r = stj + 1
-                    while l < edi:
-                        kmer = geneSeq[l:edi] + geneSeq[stj:r]
+                    junction = geneSeq[edi - self.readLength + 1:edi] + geneSeq[stj:stj + self.readLength - 1]
+                    
+                    l = 0
+                    while l + self.K <= 2*self.readLength - 2:
+                        kmer = junction[l:l + self.K]
                         if kmer in self.kmerTable:
-                            contribution = self.kmerContribution(sti, edj, l, r)
+                            contribution = self.kmerContribution(0, 2*self.readLength - 2, l, l + self.K, 2*self.readLength - 2)
                             if id in self.kmerTable[kmer][1]:
                                 self.kmerTable[kmer][1][id] += contribution 
                             else:
                                 self.kmerTable[kmer][1][id] = contribution
                         l += 1
-                        r += 1
         return
     
-    def kmerContribution(self, st, ed, l, r):
+    def kmerContribution(self, st, ed, l, r, L):
         ret = min(l - st + 1, ed - r + 1)
         ret = min(ret, self.readLength - self.K + 1)
-        return ret / float(self.readLength - self.K + 1)
+        ret = min(ret, L - self.readLength + 1)
+        #return ret / float(self.readLength - self.K + 1)
+        return ret
     

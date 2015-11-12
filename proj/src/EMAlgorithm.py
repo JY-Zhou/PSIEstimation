@@ -200,25 +200,27 @@ class EMAlgorithm:
     def work(self, time):
         self.initialVariables()
         
-        print('likelihood')
-        print(self.likelihoodFunction())
-        print(self.X)
-        GD = [10, 10, 7, 10, 10, 0, 0, 7, 3, 7]
-        for i in range(self.NX[0]):
-            GD[i] *= self.L[0][0, i]
-        print(GD)
-        tot = 0.0
-        for i in range(self.NX[0]):
-            tot += GD[i]
-        for i in range(self.NX[0]):
-            self.X[0][0, i] = GD[i] / tot
-        print(self.likelihoodFunction())
-        print(self.X)
-        for i in range(self.NX[0]):
-            tot = 0.0
-            for s in range(self.NW):
-                tot += self.Tau[s, i]
-            print(str(i) + ' ' + str(tot))
+        #=======================================================================
+        # print('likelihood')
+        # print(self.likelihoodFunction())
+        # print(self.X)
+        # GD = [10, 10, 3, 10, 10, 0, 0, 3, 7, 3]
+        # for i in range(self.NX[0]):
+        #     GD[i] *= self.L[0][0, i]
+        # print(GD)
+        # tot = 0.0
+        # for i in range(self.NX[0]):
+        #     tot += GD[i]
+        # for i in range(self.NX[0]):
+        #     self.X[0][0, i] = GD[i] / tot
+        # print(self.likelihoodFunction())
+        # print(self.X)
+        # for i in range(self.NX[0]):
+        #     tot = 0.0
+        #     for s in range(self.NW):
+        #         tot += self.Tau[s, i]
+        #     print(str(i) + ' ' + str(tot))
+        #=======================================================================
         
         
         proc = 0

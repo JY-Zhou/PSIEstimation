@@ -1,18 +1,19 @@
 import numpy as np
 
-print('!')
-a = np.random.rand(100,10000000)
-print('!!')
-s = a.T
-print('!!!')
-input()
+#===============================================================================
+# print('!')
+# a = np.random.rand(100,10000000)
+# print('!!')
+# s = a.T
+# print('!!!')
+#===============================================================================
 def showPlot(exon):
     print('Corresponding Reads')
     for x in exon:
         print(x)
 
     print('Kmer Abundance Distribution')
-    k = 15
+    k = 25
 
     dist = []
     for i in range(len(str)):
@@ -26,7 +27,7 @@ def showPlot(exon):
         l += 1
         r += 1
     for x in dist:
-        print(x, end = '')
+        print(chr(ord('A')+x), end = '')
     print('')
     
     stop = False
@@ -43,12 +44,13 @@ def showPlot(exon):
     
 
 str = ''
+print(ord('U') - ord('A') + ord('[') - ord('A'))
 for i in range(50):
     str += 'a'
 for i in range(50):
     str += 'b'
 print(str)
-step = 20
+step = 75
 st = 0
 exon1 = []
 exon2 = []
