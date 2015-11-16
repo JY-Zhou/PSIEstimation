@@ -41,22 +41,24 @@ class EMAlgorithm:
                     idx += 1        
 
     def initialCoefficients(self, kmerHasher):
-        self.L = []
-        for g in range(self.NG):
-            self.L.append(np.zeros((1, self.NX[g])))
-        for g in range(self.NG):
-            col = 0
-            for e in range(self.NE[g]):
-                st = kmerHasher.geneBoundary[g][e][0]
-                ed = kmerHasher.geneBoundary[g][e][1] + 1
-                self.L[g][0, col] = ed - st - self.K + 1
-                col += 1
-            for ei in range(self.NE[g]):
-                ej = ei + 1
-                while ej < self.NE[g]:
-                    self.L[g][0, col] = 2 * self.readLength - 2 - self.K + 1
-                    ej += 1
-                    col += 1
+        #=======================================================================
+        # self.L = []
+        # for g in range(self.NG):
+        #     self.L.append(np.zeros((1, self.NX[g])))
+        # for g in range(self.NG):
+        #     col = 0
+        #     for e in range(self.NE[g]):
+        #         st = kmerHasher.geneBoundary[g][e][0]
+        #         ed = kmerHasher.geneBoundary[g][e][1] + 1
+        #         self.L[g][0, col] = ed - st - self.K + 1
+        #         col += 1
+        #     for ei in range(self.NE[g]):
+        #         ej = ei + 1
+        #         while ej < self.NE[g]:
+        #             self.L[g][0, col] = 2 * self.readLength - 2 - self.K + 1
+        #             ej += 1
+        #             col += 1
+        #=======================================================================
         
         self.Tau = spa.lil_matrix((self.NW, self.NXSUM[self.NG]))
         self.W = np.zeros((1, self.NW))
@@ -73,7 +75,8 @@ class EMAlgorithm:
                 ei = int(sub[1])
                 ej = int(sub[2])
                 col = self.MergeIdx[(g, ei, ej)]
-                self.Tau[row, col] = contribution[loc] / self.L[g][0, col - self.NXSUM[g]]
+                #self.Tau[row, col] = contribution[loc] / self.L[g][0, col - self.NXSUM[g]]
+                self.Tau[row, col] = contribution[loc]
                 gSet[g] = True
                 
             for g in gSet:
@@ -83,13 +86,20 @@ class EMAlgorithm:
     def initialConstraints(self):
         self.NA = []
         for g in range(self.NG):
-            self.NA.append(3 * self.NE[g] - 2)
+            if self.NE[g] > 2:
+                self.NA.append(3 * self.NE[g] - 2)
+            else:
+                self.NA.append(self.NE[g])
             
         self.A = []
         for g in range(self.NG):
             self.A.append(np.zeros((self.NA[g], self.NX[g])))
         for g in range(self.NG):
-            row = 0            
+            if self.NA[g] == 1:
+                self.A[g][0, 0] = 1
+                break
+            
+            row = 0
             
             NRightJunc = self.NE[g] - 1
             l = self.NE[g]
@@ -115,14 +125,15 @@ class EMAlgorithm:
                     r -= 1     
                 row += 1                
             
-            NPsi = NLeftJunc + self.NE[g]
+            NPsi = NLeftJunc + self.NE[g] - 2
             while row < NPsi:
                 for i in range(self.NX[g]):
                     if i >= self.NE[g]:
                         self.A[g][row, i] = -1 
-                    elif i != row - NLeftJunc:
+                    elif i != row - NLeftJunc + 1:
                         self.A[g][row, i] = 1
                 row += 1                
+            print(self.A)
 
     def initialVariables(self):
         self.Z = np.random.rand(1, self.NG)
@@ -135,10 +146,16 @@ class EMAlgorithm:
         self.X = []
         for g in range(self.NG):
             self.X.append(np.random.rand(1, self.NX[g]))
-            while not np.all(self.A[g].dot(self.X[g].T) > -self.EPS):
+            tot = 0.0
+            for e in range(self.NX[g]):
+                tot += self.X[g][0, e]
+            for e in range(self.NX[g]):
+                self.X[g][0, e] /= tot
+                
+            while not (self.A[g].dot(self.X[g].T) > -self.EPS).all():
                 self.X[g] = np.random.rand(1, self.NX[g])
                 for e in range(self.NE[g]):
-                    self.X[g][0, e] *= 20
+                    self.X[g][0, e] *= 2
                 tot = 0.0
                 for e in range(self.NX[g]):
                     tot += self.X[g][0, e]
@@ -190,24 +207,41 @@ class EMAlgorithm:
     def objectFunction(self, X, g):
         return self.Mu[:,g].multiply(np.log(self.Tau[:,self.NXSUM[g]:self.NXSUM[g+1]].dot(X.T))).T.dot(self.W.T)[0,0]
     
-    def likelihoodFunction(self):
+    def likelihoodFunction(self, x):
         temp = np.zeros((self.NW, 1))
+        x = np.matrix(x)
         for g in range(self.NG):
-            temp += self.Z[0, g] * self.Tau[:,self.NXSUM[g]:self.NXSUM[g+1]].dot(self.X[g].T)
+            print(self.Tau[:,self.NXSUM[g]:self.NXSUM[g+1]].dot(x.T).shape)
+            temp += self.Z[0, g] * self.Tau[:,self.NXSUM[g]:self.NXSUM[g+1]].dot(x.T)
         temp = scp.log(temp)
-        return self.W.dot(temp)
+        return -self.W.dot(temp)
     
     def optimizeLikelihood(self):
-        return
+        print(np.ones((1, self.NX[0])).dot(self.X[0].T) - 1)
+        res = opt.minimize(fun = self.likelihoodFunction,
+                           x0 = self.X[0],
+                           bounds = [(0, 1) for i in range(self.NX[0])],
+                           constraints = ({'type':'ineq', 'fun': lambda x: self.A[0].dot(x.T)},
+                                          {'type':'eq', 'fun': lambda x: np.ones((1, self.NX[0])).dot(x.T) - 1 }))
+        return res
     
     def work(self, time):
         self.initialVariables()
+        print(self.X[0])
         
-        print(self.X)
-        print(self.likelihoodFunction())
-        self.X[0] = np.ones((1,3))
-        print(self.X)
-        print(self.likelihoodFunction())
+        res = self.optimizeLikelihood()
+        print(res)
+        self.X[0] = np.matrix(res.x)
+        
+        #=======================================================================
+        # print(self.X)
+        # print(self.likelihoodFunction())
+        # self.X[0] = np.ones((1,3))
+        # print(self.X)
+        # print(self.likelihoodFunction())
+        #=======================================================================
+        
+        
         #=======================================================================
         # print('likelihood')
         # print(self.likelihoodFunction())
@@ -231,20 +265,25 @@ class EMAlgorithm:
         #=======================================================================
         
         
-        proc = 0
-        while proc < time:
-            if proc % 1 == 0:
-                print(str(proc) + ' iteration processed...')
-            proc += 1
-            self.eStep()
-            self.mStep()
+        #=======================================================================
+        # proc = 0
+        # while proc < time:
+        #     if proc % 1 == 0:
+        #         print(str(proc) + ' iteration processed...')
+        #     proc += 1
+        #     self.eStep()
+        #     self.mStep()
+        #=======================================================================
+        
+        
         self.computePSI()
         return
     
     def computePSI(self):
         self.Psi = []
         for g in range(self.NG):
-            tempPsi = self.X[g] / self.L[g]  
+            #tempPsi = self.X[g] / self.L[g]
+            tempPsi = self.X[g]
             sumEx = 0.0
             sumJu = 0.0
             e = 0
@@ -254,7 +293,7 @@ class EMAlgorithm:
             while e < self.NX[g]:
                 sumJu += tempPsi[0, e]
                 e += 1
-            tempPsi = tempPsi / (sumEx - sumJu)
+            tempPsi /= (sumEx - sumJu)
             self.Psi.append(tempPsi[0,:self.NE[g]].tolist()) 
         psiFile = open('../output/PsiResult.json', 'w')
         json.dump(self.Psi, psiFile)
