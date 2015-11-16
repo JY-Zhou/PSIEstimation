@@ -202,7 +202,12 @@ class EMAlgorithm:
     
     def work(self, time):
         self.initialVariables()
-        self.optimizeLikelihood()
+        
+        print(self.X)
+        print(self.likelihoodFunction())
+        self.X[0] = np.ones((1,3))
+        print(self.X)
+        print(self.likelihoodFunction())
         #=======================================================================
         # print('likelihood')
         # print(self.likelihoodFunction())
@@ -226,16 +231,14 @@ class EMAlgorithm:
         #=======================================================================
         
         
-        #=======================================================================
-        # proc = 0
-        # while proc < time:
-        #     if proc % 1 == 0:
-        #         print(str(proc) + ' iteration processed...')
-        #     proc += 1
-        #     self.eStep()
-        #     self.mStep()
-        # self.computePSI()
-        #=======================================================================
+        proc = 0
+        while proc < time:
+            if proc % 1 == 0:
+                print(str(proc) + ' iteration processed...')
+            proc += 1
+            self.eStep()
+            self.mStep()
+        self.computePSI()
         return
     
     def computePSI(self):
