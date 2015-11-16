@@ -2,7 +2,7 @@ import json
 from generator.ReferenceGenerator import ReferenceGenerator
 from generator.ReadGenerator import ReadGenerator
 
-confFile = open('../tricky/GenerationConfig.json', 'r')
+confFile = open('../kits/GenerationConfig.json', 'r')
 
 groundTruth = json.load(confFile)
 referenceGen = ReferenceGenerator(groundTruth['NG'],
@@ -29,5 +29,5 @@ for g in range(groundTruth['NG']):
     for e in range(groundTruth['NE'][g]):
         Psi[g][e] /= tot
 
-psiFile = open('../tricky/PsiGroundTruth.json', 'w')
+psiFile = open('../kits/PsiGroundTruth.json', 'w')
 json.dump(Psi, psiFile)

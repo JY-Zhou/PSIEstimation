@@ -64,7 +64,7 @@ class ReferenceGenerator:
             print('', file = exonBoundarydOut)
             
     def outputIsoformFasta(self):
-        isoformOut = open('../tricky/isoform.fa', 'w')
+        isoformOut = open('../kits/isoform.fa', 'w')
         for g in range(self.NG):
             for i in range(len(self.Iso[g])):
                 isoform = self.Iso[g][i]

@@ -74,6 +74,7 @@ class KmerHash:
                 id = str(g) + ',' + str(e) + ',' + str(e)
                 st = self.geneBoundary[g][e][0]
                 ed = self.geneBoundary[g][e][1] + 1
+                
                 l = st
                 tot = 0.0
                 while l + self.K <= ed:
@@ -86,6 +87,7 @@ class KmerHash:
                         else:
                             self.kmerTable[kmer][1][id] = contribution
                     l += 1
+                    
                 l = st
                 while l + self.K <= ed:
                     kmer = geneSeq[l:l+self.K]
@@ -111,6 +113,7 @@ class KmerHash:
                             else:
                                 self.kmerTable[kmer][1][id] = contribution
                         l += 1
+                        
                     l = 0
                     while l + self.K <= 2*self.readLength - 2:
                         kmer = junction[l:l+self.K]

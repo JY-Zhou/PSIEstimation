@@ -6,7 +6,7 @@ class ReadGenerator:
         
     def generateUniformRead(self):
         self.reads = []
-        isoformIn = open('../tricky/isoform.fa', 'r')
+        isoformIn = open('../kits/isoform.fa', 'r')
         isoform = []
         for line in isoformIn:
             isoform.append(line[:-1])
