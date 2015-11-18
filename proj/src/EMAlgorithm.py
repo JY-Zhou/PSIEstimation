@@ -64,7 +64,8 @@ class EMAlgorithm:
         self.W = np.zeros((1, self.NW))
         self.MuNonZero = []
         row = 0
-        for kmer in kmerHasher.kmerTable:
+        #for kmer in kmerHasher.kmerTable:
+        for kmer in kmerHasher.temp:
             self.W[0, row] = kmerHasher.kmerTable[kmer][0]
             contribution = kmerHasher.kmerTable[kmer][1]
             
@@ -83,11 +84,14 @@ class EMAlgorithm:
                 self.MuNonZero.append((row, g))
             row += 1
             
+        print(self.W)
+        print(self.Tau.getnnz())    
+        
     def initialConstraints(self):
         self.NA = []
         for g in range(self.NG):
             if self.NE[g] > 2:
-                self.NA.append(3 * self.NE[g] - 2)
+                self.NA.append(3 * self.NE[g] - 4)
             else:
                 self.NA.append(self.NE[g])
             
@@ -211,27 +215,40 @@ class EMAlgorithm:
         temp = np.zeros((self.NW, 1))
         x = np.matrix(x)
         for g in range(self.NG):
-            print(self.Tau[:,self.NXSUM[g]:self.NXSUM[g+1]].dot(x.T).shape)
             temp += self.Z[0, g] * self.Tau[:,self.NXSUM[g]:self.NXSUM[g+1]].dot(x.T)
         temp = scp.log(temp)
         return -self.W.dot(temp)
     
     def optimizeLikelihood(self):
-        print(np.ones((1, self.NX[0])).dot(self.X[0].T) - 1)
         res = opt.minimize(fun = self.likelihoodFunction,
                            x0 = self.X[0],
                            bounds = [(0, 1) for i in range(self.NX[0])],
+                           method = 'SLSQP',
                            constraints = ({'type':'ineq', 'fun': lambda x: self.A[0].dot(x.T)},
                                           {'type':'eq', 'fun': lambda x: np.ones((1, self.NX[0])).dot(x.T) - 1 }))
         return res
-    
+
     def work(self, time):
         self.initialVariables()
+        
+        groundTruth = json.load(open('../kits/XGroundTruth.json', 'r'))
+        self.X[0] = np.matrix([groundTruth[0]])
+        
         print(self.X[0])
+        print(self.likelihoodFunction(self.X[0]))
+        print((self.A[0].dot(self.X[0].T) > -self.EPS).all())
+        print((scp.fabs(np.ones((1, self.NX[0])).dot(self.X[0].T) - 1) < self.EPS).all())
+        
         
         res = self.optimizeLikelihood()
+        
         print(res)
         self.X[0] = np.matrix(res.x)
+        
+        
+        #self.X[0] = np.matrix([[0.25,0.5,0.25]])
+
+        
         
         #=======================================================================
         # print(self.X)
@@ -283,7 +300,7 @@ class EMAlgorithm:
         self.Psi = []
         for g in range(self.NG):
             #tempPsi = self.X[g] / self.L[g]
-            tempPsi = self.X[g]
+            tempPsi = self.X[g].copy()
             sumEx = 0.0
             sumJu = 0.0
             e = 0
@@ -294,7 +311,8 @@ class EMAlgorithm:
                 sumJu += tempPsi[0, e]
                 e += 1
             tempPsi /= (sumEx - sumJu)
-            self.Psi.append(tempPsi[0,:self.NE[g]].tolist()) 
+            self.Psi.append(tempPsi[0,:self.NE[g]].tolist())
         psiFile = open('../output/PsiResult.json', 'w')
         json.dump(self.Psi, psiFile)
+
         return

@@ -61,11 +61,11 @@ class KmerHash:
         genomeIn.close()
         
         self.temp = []
-        self.contri = {}
+        self.id = {}
         l = 0
         while l + self.K <= len(geneSeq):
             self.temp.append(geneSeq[l:l+self.K])
-            self.contri[geneSeq[l:l+self.K]] = l
+            self.id[geneSeq[l:l+self.K]] = l
             l += 1
         
         for g in range(self.NG):
@@ -88,11 +88,14 @@ class KmerHash:
                             self.kmerTable[kmer][1][id] = contribution
                     l += 1
                     
-                l = st
-                while l + self.K <= ed:
-                    kmer = geneSeq[l:l+self.K]
-                    self.kmerTable[kmer][1][id] /= tot
-                    l += 1
+                #===============================================================
+                # l = st
+                # while l + self.K <= ed:
+                #     kmer = geneSeq[l:l+self.K]
+                #     if kmer in self.kmerTable:
+                #         self.kmerTable[kmer][1][id] /= tot
+                #     l += 1
+                #===============================================================
                     
             for ei in range(self.NE[g]):
                 for ej in range(ei + 1, self.NE[g]):
@@ -114,16 +117,23 @@ class KmerHash:
                                 self.kmerTable[kmer][1][id] = contribution
                         l += 1
                         
-                    l = 0
-                    while l + self.K <= 2*self.readLength - 2:
-                        kmer = junction[l:l+self.K]
-                        self.kmerTable[kmer][1][id] /= tot
-                        l += 1
+                    #===========================================================
+                    # l = 0
+                    # while l + self.K <= 2*self.readLength - 2:
+                    #     kmer = junction[l:l+self.K]
+                    #     if kmer in self.kmerTable:
+                    #         self.kmerTable[kmer][1][id] /= tot
+                    #     l += 1
+                    #===========================================================
         return
     
     def kmerContribution(self, st, ed, l, r, L):
+        cil = min(L - self.readLength + 1, self.readLength - self.K + 1)
         ret = min(l - st + 1, ed - r + 1)
-        ret = min(ret, self.readLength - self.K + 1)
-        ret = min(ret, L - self.readLength + 1)
-        return ret
+        ret = min(ret, cil)
+        #=======================================================================
+        # ret = min(ret, self.readLength - self.K + 1)
+        # ret = min(ret, L - self.readLength + 1)
+        #=======================================================================
+        return ret / cil
     
