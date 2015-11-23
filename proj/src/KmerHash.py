@@ -76,26 +76,24 @@ class KmerHash:
                 ed = self.geneBoundary[g][e][1] + 1
                 
                 l = st
-                tot = 0.0
                 while l + self.K <= ed:
                     kmer = geneSeq[l:l+self.K]
                     if kmer in self.kmerTable:
                         contribution = self.kmerContribution(st, ed, l, l + self.K, ed - st)
-                        tot += contribution
                         if id in self.kmerTable[kmer][1]:
                             self.kmerTable[kmer][1][id] += contribution
                         else:
                             self.kmerTable[kmer][1][id] = contribution
                     l += 1
+            
+                tot = (ed - st - self.readLength + 1) * (self.readLength - self.K + 1)
                     
-                #===============================================================
-                # l = st
-                # while l + self.K <= ed:
-                #     kmer = geneSeq[l:l+self.K]
-                #     if kmer in self.kmerTable:
-                #         self.kmerTable[kmer][1][id] /= tot
-                #     l += 1
-                #===============================================================
+                l = st
+                while l + self.K <= ed:
+                    kmer = geneSeq[l:l+self.K]
+                    if kmer in self.kmerTable:
+                        self.kmerTable[kmer][1][id] /= tot
+                    l += 1
                     
             for ei in range(self.NE[g]):
                 for ej in range(ei + 1, self.NE[g]):
@@ -105,35 +103,35 @@ class KmerHash:
                     junction = geneSeq[edi - self.readLength + 1:edi] + geneSeq[stj:stj + self.readLength - 1]
                     
                     l = 0
-                    tot = 0.0
                     while l + self.K <= 2*self.readLength - 2:
                         kmer = junction[l:l + self.K]
                         if kmer in self.kmerTable:
                             contribution = self.kmerContribution(0, 2*self.readLength - 2, l, l + self.K, 2*self.readLength - 2)
-                            tot += contribution
                             if id in self.kmerTable[kmer][1]:
                                 self.kmerTable[kmer][1][id] += contribution 
                             else:
                                 self.kmerTable[kmer][1][id] = contribution
                         l += 1
                         
-                    #===========================================================
-                    # l = 0
-                    # while l + self.K <= 2*self.readLength - 2:
-                    #     kmer = junction[l:l+self.K]
-                    #     if kmer in self.kmerTable:
-                    #         self.kmerTable[kmer][1][id] /= tot
-                    #     l += 1
-                    #===========================================================
+                    tot = (2*self.readLength - 2 - self.readLength + 1) * (self.readLength - self.K + 1)
+                        
+                    l = 0
+                    while l + self.K <= 2*self.readLength - 2:
+                        kmer = junction[l:l+self.K]
+                        if kmer in self.kmerTable:
+                            self.kmerTable[kmer][1][id] /= tot
+                        l += 1
         return
     
     def kmerContribution(self, st, ed, l, r, L):
         cil = min(L - self.readLength + 1, self.readLength - self.K + 1)
         ret = min(l - st + 1, ed - r + 1)
-        ret = min(ret, cil)
         #=======================================================================
+        # ret = min(ret, cil)
         # ret = min(ret, self.readLength - self.K + 1)
         # ret = min(ret, L - self.readLength + 1)
+        # return ret / cil
         #=======================================================================
-        return ret / cil
+        return min(ret, cil)
+        
     

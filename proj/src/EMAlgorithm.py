@@ -41,31 +41,28 @@ class EMAlgorithm:
                     idx += 1        
 
     def initialCoefficients(self, kmerHasher):
-        #=======================================================================
-        # self.L = []
-        # for g in range(self.NG):
-        #     self.L.append(np.zeros((1, self.NX[g])))
-        # for g in range(self.NG):
-        #     col = 0
-        #     for e in range(self.NE[g]):
-        #         st = kmerHasher.geneBoundary[g][e][0]
-        #         ed = kmerHasher.geneBoundary[g][e][1] + 1
-        #         self.L[g][0, col] = ed - st - self.K + 1
-        #         col += 1
-        #     for ei in range(self.NE[g]):
-        #         ej = ei + 1
-        #         while ej < self.NE[g]:
-        #             self.L[g][0, col] = 2 * self.readLength - 2 - self.K + 1
-        #             ej += 1
-        #             col += 1
-        #=======================================================================
+        self.L = []
+        for g in range(self.NG):
+            self.L.append(np.zeros((1, self.NX[g])))
+        for g in range(self.NG):
+            col = 0
+            for e in range(self.NE[g]):
+                st = kmerHasher.geneBoundary[g][e][0]
+                ed = kmerHasher.geneBoundary[g][e][1] + 1
+                self.L[g][0, col] = ed - st - self.K + 1
+                col += 1
+            for ei in range(self.NE[g]):
+                ej = ei + 1
+                while ej < self.NE[g]:
+                    self.L[g][0, col] = 2 * self.readLength - 2 - self.K + 1
+                    ej += 1
+                    col += 1
         
         self.Tau = spa.lil_matrix((self.NW, self.NXSUM[self.NG]))
         self.W = np.zeros((1, self.NW))
         self.MuNonZero = []
         row = 0
-        #for kmer in kmerHasher.kmerTable:
-        for kmer in kmerHasher.temp:
+        for kmer in kmerHasher.kmerTable:
             self.W[0, row] = kmerHasher.kmerTable[kmer][0]
             contribution = kmerHasher.kmerTable[kmer][1]
             
