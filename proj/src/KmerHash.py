@@ -126,12 +126,6 @@ class KmerHash:
     def kmerContribution(self, st, ed, l, r, L):
         cil = min(L - self.readLength + 1, self.readLength - self.K + 1)
         ret = min(l - st + 1, ed - r + 1)
-        #=======================================================================
-        # ret = min(ret, cil)
-        # ret = min(ret, self.readLength - self.K + 1)
-        # ret = min(ret, L - self.readLength + 1)
-        # return ret / cil
-        #=======================================================================
         return min(ret, cil)
         
     

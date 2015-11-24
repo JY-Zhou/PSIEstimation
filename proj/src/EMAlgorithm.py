@@ -3,6 +3,7 @@ import scipy.optimize as opt
 import scipy.sparse as spa
 import numpy as np
 import json
+from test.support import args_from_interpreter_flags
 
 class EMAlgorithm:
     def __init__(self, kmerHasher):
@@ -73,7 +74,6 @@ class EMAlgorithm:
                 ei = int(sub[1])
                 ej = int(sub[2])
                 col = self.MergeIdx[(g, ei, ej)]
-                #self.Tau[row, col] = contribution[loc] / self.L[g][0, col - self.NXSUM[g]]
                 self.Tau[row, col] = contribution[loc]
                 gSet[g] = True
                 
@@ -81,9 +81,6 @@ class EMAlgorithm:
                 self.MuNonZero.append((row, g))
             row += 1
             
-        #print(self.W)
-        #print(self.Tau.getnnz())    
-        
     def initialConstraints(self):
         self.NA = []
         for g in range(self.NG):
@@ -134,9 +131,27 @@ class EMAlgorithm:
                     elif i != row - NLeftJunc + 1:
                         self.A[g][row, i] = 1
                 row += 1                
+                
             self.A[g] = self.A[g] / (np.ones((self.NA[g], 1)).dot(self.L[g]))
-            #print(self.A)
-            print(self.L)
+    
+    def initialX(self, g):
+        ret = np.random.rand(1, self.NX[g])
+        tot = 0.0
+        for e in range(self.NX[g]):
+            tot += ret[0, e]
+        for e in range(self.NX[g]):
+            ret[0, e] /= tot
+                
+        while not (self.A[g].dot(ret.T) > -self.EPS).all():
+            ret = np.random.rand(1, self.NX[g])
+            for e in range(self.NE[g]):
+                ret[0, e] *= 2
+            tot = 0.0
+            for e in range(self.NX[g]):
+                tot += ret[0, e]
+            for e in range(self.NX[g]):
+                ret[0, e] /= tot
+        return ret
 
     def initialVariables(self):
         self.Z = np.random.rand(1, self.NG)
@@ -148,70 +163,64 @@ class EMAlgorithm:
         
         self.X = []
         for g in range(self.NG):
-            self.X.append(np.random.rand(1, self.NX[g]))
-            tot = 0.0
-            for e in range(self.NX[g]):
-                tot += self.X[g][0, e]
-            for e in range(self.NX[g]):
-                self.X[g][0, e] /= tot
-                
-            while not (self.A[g].dot(self.X[g].T) > -self.EPS).all():
-                self.X[g] = np.random.rand(1, self.NX[g])
-                for e in range(self.NE[g]):
-                    self.X[g][0, e] *= 2
-                tot = 0.0
-                for e in range(self.NX[g]):
-                    tot += self.X[g][0, e]
-                for e in range(self.NX[g]):
-                    self.X[g][0, e] /= tot
+            self.X.append(self.initialX(g))
 
         self.Mu = spa.lil_matrix((self.NW, self.NG))
         return
     
-#===============================================================================
-#     def eStep(self):
-#         tot = []
-#         for s in range(self.NW):
-#             tot.append(0)
-#         for loca in self.MuNonZero:
-#             s = loca[0]
-#             g = loca[1]
-#             self.Mu[s, g] = self.Z[0, g] * self.Tau[s, self.NXSUM[g]:self.NXSUM[g+1]].dot(self.X[g].T)[0, 0]
-#             tot[s] += self.Mu[s, g]
-#         for loca in self.MuNonZero:
-#             s = loca[0]
-#             g = loca[1]
-#             self.Mu[s, g] /= tot[s]
-#         return
-#     
-#     def mStep(self):
-#         tot = 0.0
-#         for g in range(self.NG):
-#             self.Z[0, g] = self.Mu[:,g].T.dot(self.W.T)
-#             tot += self.Z[0, g]
-#         for g in range(self.NG):
-#             self.Z[0, g] /= tot
-# 
-#         for g in range(self.NG):
-#             self.optimizeQ(g)
-#         return
-#     
-#     def optimizeQ(self, g):
-#         print(self.objectFunction(self.X[g], g))
-#         res = opt.minimize(fun = lambda X: -self.Mu[:,g].multiply(scp.log(self.Tau[:,self.NXSUM[g]:self.NXSUM[g+1]].dot(X.T))).T.dot(self.W.T)[0,0],
-#                            x0 = self.X[g],
-#                            bounds = [(0, 1) for i in range(self.NX[g])],
-#                            constraints = ({'type':'ineq', 'fun':lambda X: self.A[g].dot(X.T)},
-#                                           {'type':'eq', 'fun':lambda X: np.ones((1, self.NX[g])).dot(X.T) - 1}))
-#         print(res)
-#         for i in range(self.NX[g]):
-#             self.X[g][0, i] = res.x[i]
-#         return
-#     
-#     def objectFunction(self, X, g):
-#         return self.Mu[:,g].multiply(np.log(self.Tau[:,self.NXSUM[g]:self.NXSUM[g+1]].dot(X.T))).T.dot(self.W.T)[0,0]
-#     
-#===============================================================================
+    def eStep(self):
+        tot = []
+        for s in range(self.NW):
+            tot.append(0)
+        for loca in self.MuNonZero:
+            s = loca[0]
+            g = loca[1]
+            self.Mu[s, g] = self.Z[0, g] * self.Tau[s, self.NXSUM[g]:self.NXSUM[g+1]].dot(self.X[g].T)[0, 0]
+            tot[s] += self.Mu[s, g]
+        for loca in self.MuNonZero:
+            s = loca[0]
+            g = loca[1]
+            self.Mu[s, g] /= tot[s]
+        return
+     
+    def mStep(self):
+        tot = 0.0
+        for g in range(self.NG):
+            self.Z[0, g] = self.Mu[:,g].T.dot(self.W.T)
+            tot += self.Z[0, g]
+        for g in range(self.NG):
+            self.Z[0, g] /= tot
+ 
+        for g in range(self.NG):
+            self.optimizeQ(g)
+        return
+     
+    def optimizeQ(self, g):
+        print(self.QFunction(self.X[g], g))
+        glopt = float('inf')
+        
+        for t in range(15):
+            res = opt.minimize(fun = self.QFunction,
+                           x0 = self.initialX(g),
+                           args = (g,),
+                           bounds = [(0, 1) for i in range(self.NX[g])],
+                           constraints = ({'type':'ineq', 'fun':lambda X: self.A[g].dot(X.T)},
+                                          {'type':'eq', 'fun':lambda X: np.ones((1, self.NX[g])).dot(X.T) - 1}))
+            print(res.fun)
+            if res.fun[0, 0] < glopt:
+                finres = res
+                glopt = res.fun[0, 0]
+        print(finres)
+        #input()
+        print(finres)
+        for i in range(self.NX[g]):
+            self.X[g] = np.matrix(finres.x)
+        return
+     
+    def QFunction(self, X, g):
+        X = np.matrix(X)
+        return -self.Mu[:,g].multiply(np.log(self.Tau[:,self.NXSUM[g]:self.NXSUM[g+1]].dot(X.T))).T.dot(self.W.T)
+     
     def likelihoodFunction(self, x):
         temp = np.zeros((self.NW, 1))
         x = np.matrix(x)
@@ -219,7 +228,7 @@ class EMAlgorithm:
             temp += self.Z[0, g] * self.Tau[:,self.NXSUM[g]:self.NXSUM[g+1]].dot(x.T)
         temp = scp.log(temp)
         return -self.W.dot(temp)
-    
+     
     def optimizeLikelihood(self):
         res = opt.minimize(fun = self.likelihoodFunction,
                            x0 = self.X[0],
@@ -230,70 +239,21 @@ class EMAlgorithm:
 
     def work(self, time):
         self.initialVariables()
-        
+                
         #=======================================================================
-        # groundTruth = json.load(open('../kits/XGroundTruth.json', 'r'))
-        # self.X[0] = np.matrix([groundTruth[0]])
-        # 
-        # print(self.X[0])
-        # print(self.likelihoodFunction(self.X[0]))
-        # print((self.A[0].dot(self.X[0].T) > -self.EPS).all())
-        # print((scp.fabs(np.ones((1, self.NX[0])).dot(self.X[0].T) - 1) < self.EPS).all())
+        # res = self.optimizeLikelihood()        
+        # print(res)
+        # self.X[0] = np.matrix(res.x)
         #=======================================================================
-        
-        res = self.optimizeLikelihood()
-        
-        print(res)
-        self.X[0] = np.matrix(res.x)
-        
-        
-        #self.X[0] = np.matrix([[0.25,0.5,0.25]])
-
-        
-        
-        #=======================================================================
-        # print(self.X)
-        # print(self.likelihoodFunction())
-        # self.X[0] = np.ones((1,3))
-        # print(self.X)
-        # print(self.likelihoodFunction())
-        #=======================================================================
-        
-        
-        #=======================================================================
-        # print('likelihood')
-        # print(self.likelihoodFunction())
-        # print(self.X)
-        # GD = [10, 10, 3, 10, 10, 0, 0, 3, 7, 3]
-        # for i in range(self.NX[0]):
-        #     GD[i] *= self.L[0][0, i]
-        # print(GD)
-        # tot = 0.0
-        # for i in range(self.NX[0]):
-        #     tot += GD[i]
-        # for i in range(self.NX[0]):
-        #     self.X[0][0, i] = GD[i] / tot
-        # print(self.likelihoodFunction())
-        # print(self.X)
-        # for i in range(self.NX[0]):
-        #     tot = 0.0
-        #     for s in range(self.NW):
-        #         tot += self.Tau[s, i]
-        #     print(str(i) + ' ' + str(tot))
-        #=======================================================================
-        
-        
-        #=======================================================================
-        # proc = 0
-        # while proc < time:
-        #     if proc % 1 == 0:
-        #         print(str(proc) + ' iteration processed...')
-        #     proc += 1
-        #     self.eStep()
-        #     self.mStep()
-        #=======================================================================
-        
-        
+               
+        proc = 0
+        while proc < time:
+            if proc % 1 == 0:
+                print(str(proc) + ' iteration processed...')
+            proc += 1
+            self.eStep()
+            self.mStep()
+                
         self.computePSI()
         return
     
@@ -301,7 +261,6 @@ class EMAlgorithm:
         self.Psi = []
         for g in range(self.NG):
             tempPsi = self.X[g] / self.L[g]
-            #tempPsi = self.X[g].copy()
             sumEx = 0.0
             sumJu = 0.0
             e = 0
