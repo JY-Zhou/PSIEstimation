@@ -3,11 +3,10 @@ import scipy.optimize as opt
 import scipy.sparse as spa
 import numpy as np
 import json
-from test.support import args_from_interpreter_flags
 
 class EMAlgorithm:
     def __init__(self, kmerHasher):
-        self.EPS = 1e-12
+        self.EPS = 1e-30
         self.NG = kmerHasher.NG
         self.NE = kmerHasher.NE
         self.K = kmerHasher.K
@@ -196,22 +195,24 @@ class EMAlgorithm:
         return
      
     def optimizeQ(self, g):
-        print(self.QFunction(self.X[g], g))
         glopt = float('inf')
         
         for t in range(15):
+            xInit = self.initialX(g)
+            print((self.A[0].dot(self.X[0].T) > 1e-15).all())
+            print(np.ones((1, self.NX[0])).dot(self.X[0].T))
             res = opt.minimize(fun = self.QFunction,
-                           x0 = self.initialX(g),
-                           args = (g,),
-                           bounds = [(0, 1) for i in range(self.NX[g])],
-                           constraints = ({'type':'ineq', 'fun':lambda X: self.A[g].dot(X.T)},
-                                          {'type':'eq', 'fun':lambda X: np.ones((1, self.NX[g])).dot(X.T) - 1}))
+                               x0 = xInit,
+                               args = (g,),
+                               tol = self.EPS, 
+                               bounds = [(0, 1) for i in range(self.NX[g])],
+                               #jac = self.QDerivate,
+                               constraints = ({'type':'ineq', 'fun':lambda X: self.A[g].dot(X.T)},
+                                              {'type':'eq', 'fun':lambda X: np.ones((1, self.NX[g])).dot(X.T) - 1}))
             print(res.fun)
             if res.fun[0, 0] < glopt:
                 finres = res
                 glopt = res.fun[0, 0]
-        print(finres)
-        #input()
         print(finres)
         for i in range(self.NX[g]):
             self.X[g] = np.matrix(finres.x)
@@ -219,7 +220,22 @@ class EMAlgorithm:
      
     def QFunction(self, X, g):
         X = np.matrix(X)
-        return -self.Mu[:,g].multiply(np.log(self.Tau[:,self.NXSUM[g]:self.NXSUM[g+1]].dot(X.T))).T.dot(self.W.T)
+        temp = self.Tau[:,self.NXSUM[g]:self.NXSUM[g+1]].dot(X.T)
+        if not (temp > self.EPS).all():
+            return float('inf')
+        return -self.Mu[:,g].multiply(np.log(temp)).T.dot(self.W.T)
+    
+    def QDerivate(self, X, g):
+        X = np.matrix(X)
+        den = self.Tau[:,self.NXSUM[g]:self.NXSUM[g+1]].dot(X.T)
+        print(self.Mu[:,g].dot(np.ones((1, self.NX[g]))).shape)
+        print(self.Tau[:,self.NXSUM[g]:self.NXSUM[g+1]].shape)
+        print(den.shape)
+        
+        num = self.Mu[:,g].dot(np.ones((1, self.NX[g]))) * (self.Tau[:,self.NXSUM[g]:self.NXSUM[g+1]])
+        print(num.shape)
+        jac = self.W.dot(num) / (den.dot(np.ones((1, self.NX[g]))))
+        return jac
      
     def likelihoodFunction(self, x):
         temp = np.zeros((self.NW, 1))
@@ -229,13 +245,15 @@ class EMAlgorithm:
         temp = scp.log(temp)
         return -self.W.dot(temp)
      
-    def optimizeLikelihood(self):
-        res = opt.minimize(fun = self.likelihoodFunction,
-                           x0 = self.X[0],
-                           bounds = [(0, 1) for i in range(self.NX[0])],
-                           constraints = ({'type':'ineq', 'fun': lambda x: self.A[0].dot(x.T)},
-                                          {'type':'eq', 'fun': lambda x: np.ones((1, self.NX[0])).dot(x.T) - 1 }))
-        return res
+    #===========================================================================
+    # def optimizeLikelihood(self):
+    #     res = opt.minimize(fun = self.likelihoodFunction,
+    #                        x0 = self.X[0],
+    #                        bounds = [(0, 1) for i in range(self.NX[0])],
+    #                        constraints = ({'type':'ineq', 'fun': lambda x: self.A[0].dot(x.T)},
+    #                                       {'type':'eq', 'fun': lambda x: np.ones((1, self.NX[0])).dot(x.T) - 1 }))
+    #     return res
+    #===========================================================================
 
     def work(self, time):
         self.initialVariables()

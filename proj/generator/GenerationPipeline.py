@@ -30,7 +30,7 @@ for g in range(groundTruth['NG']):
         Psi[g][e] /= tot
 
 psiFile = open('../kits/PsiGroundTruth.json', 'w')
-json.dump(Psi, psiFile)
+json.dump(Psi, psiFile, indent = 4)
 
 X = []
 for g in range(groundTruth['NG']):
@@ -61,4 +61,4 @@ for g in range(groundTruth['NG']):
     for x in range(len(X[g])):
         X[g][x] /= tot
 XFile = open('../kits/XGroundTruth.json', 'w')
-json.dump(X, XFile)
+json.dump(X, XFile, indent = 4)
