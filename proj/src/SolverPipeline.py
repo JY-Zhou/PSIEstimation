@@ -27,7 +27,7 @@ print(solver.likelihoodFunction(solver.X[0]))
 print(solver.Psi)
 print('\nConstraints')
 print(solver.A[0].dot(solver.X[0].T))
-print((solver.A[0].dot(solver.X[0].T) > 1e-15).all())
+print((solver.A[0].dot(solver.X[0].T) > -1e-15).all())
 print(np.ones((1, solver.NX[0])).dot(solver.X[0].T))
 
 print('\n======Ground Truth====================')

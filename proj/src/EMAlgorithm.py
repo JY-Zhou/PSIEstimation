@@ -144,7 +144,7 @@ class EMAlgorithm:
         while not (self.A[g].dot(ret.T) > -self.EPS).all():
             ret = np.random.rand(1, self.NX[g])
             for e in range(self.NE[g]):
-                ret[0, e] *= 2
+                ret[0, e] *= 10
             tot = 0.0
             for e in range(self.NX[g]):
                 tot += ret[0, e]
@@ -197,7 +197,7 @@ class EMAlgorithm:
     def optimizeQ(self, g):
         glopt = float('inf')
         
-        for t in range(15):
+        for t in range(1):
             xInit = self.initialX(g)
             print((self.A[0].dot(self.X[0].T) > 1e-15).all())
             print(np.ones((1, self.NX[0])).dot(self.X[0].T))
@@ -206,16 +206,55 @@ class EMAlgorithm:
                                args = (g,),
                                tol = self.EPS, 
                                bounds = [(0, 1) for i in range(self.NX[g])],
-                               #jac = self.QDerivate,
-                               constraints = ({'type':'ineq', 'fun':lambda X: self.A[g].dot(X.T)},
-                                              {'type':'eq', 'fun':lambda X: np.ones((1, self.NX[g])).dot(X.T) - 1}))
+                               method = 'SLSQP',
+                               jac = self.QDerivate,
+                               constraints = ({'type':'ineq',
+                                               'fun':lambda X: self.A[g].dot(X.T),
+                                               'jac':lambda X: self.A[g]},
+                                              {'type':'eq', 
+                                               'fun':lambda X: np.ones((1, self.NX[g])).dot(X.T) - 1,
+                                               'jac':lambda X: np.ones((1, self.NX[g]))}),
+                                #===============================================
+                                # options = {'eps' : 1,
+                                #            'maxiter' : 100,
+                                #            'ftol' : self.EPS,
+                                #            'disp' : True
+                                #            }
+                                #===============================================
+                               )
+            
+            #===================================================================
+            # res = opt.fmin_slsqp(func = self.QFunction, 
+            #                      x0 = xInit, 
+            #                      f_eqcons = lambda X, g: np.ones((1, self.NX[g])).dot(X.T) - 1, 
+            #                      f_ieqcons = lambda X, g: self.A[g].dot(X.T), 
+            #                      bounds = [(0, 1) for i in range(self.NX[g])], 
+            #                      fprime = self.QDerivate, 
+            #                      fprime_eqcons = lambda X, g: np.ones((1, self.NX[g])), 
+            #                      fprime_ieqcons = lambda X, g: self.A[g], 
+            #                      args = (g,), 
+            #                      iter = 100,
+            #                      acc = self.EPS, 
+            #                      disp = False, 
+            #                      full_output = True, 
+            #                      epsilon = self.EPS)
+            #===================================================================            
+            
             print(res.fun)
             if res.fun[0, 0] < glopt:
                 finres = res
                 glopt = res.fun[0, 0]
         print(finres)
-        for i in range(self.NX[g]):
-            self.X[g] = np.matrix(finres.x)
+        self.X[g] = np.matrix(finres.x)               
+        
+        #=======================================================================
+        #     print(res[1])
+        #     if res[1][0, 0] < glopt:
+        #         finres = res
+        #         glopt = res[1][0, 0]
+        # print(finres)
+        # self.X[g] = np.matrix(finres[0])
+        #=======================================================================
         return
      
     def QFunction(self, X, g):
@@ -227,15 +266,13 @@ class EMAlgorithm:
     
     def QDerivate(self, X, g):
         X = np.matrix(X)
-        den = self.Tau[:,self.NXSUM[g]:self.NXSUM[g+1]].dot(X.T)
-        print(self.Mu[:,g].dot(np.ones((1, self.NX[g]))).shape)
-        print(self.Tau[:,self.NXSUM[g]:self.NXSUM[g+1]].shape)
-        print(den.shape)
+        den = self.Tau[:,self.NXSUM[g]:self.NXSUM[g+1]].dot(X.T).dot(np.ones((1, self.NX[g])))
+        den = self.Tau[:,self.NXSUM[g]:self.NXSUM[g+1]] / den
         
-        num = self.Mu[:,g].dot(np.ones((1, self.NX[g]))) * (self.Tau[:,self.NXSUM[g]:self.NXSUM[g+1]])
-        print(num.shape)
-        jac = self.W.dot(num) / (den.dot(np.ones((1, self.NX[g]))))
-        return jac
+        num = (spa.lil_matrix(self.Mu[:,g].dot(np.ones((1, self.NX[g]))))).multiply(den)
+        jac = self.W.dot(num)
+        jac /= np.sum(jac)
+        return -jac.A1
      
     def likelihoodFunction(self, x):
         temp = np.zeros((self.NW, 1))
