@@ -180,6 +180,7 @@ class EMAlgorithm:
             s = loca[0]
             g = loca[1]
             self.Mu[s, g] /= tot[s]
+        print(self.Z)
         return
      
     def mStep(self):
@@ -199,8 +200,9 @@ class EMAlgorithm:
         
         for t in range(1):
             xInit = self.initialX(g)
-            print((self.A[0].dot(self.X[0].T) > 1e-15).all())
-            print(np.ones((1, self.NX[0])).dot(self.X[0].T))
+            #print(self.A[g].dot(self.X[g].T))
+            print((self.A[g].dot(self.X[g].T) >= 0).all())
+            print(np.ones((1, self.NX[g])).dot(self.X[g].T))
             res = opt.minimize(fun = self.QFunction,
                                x0 = xInit,
                                args = (g,),
@@ -240,12 +242,15 @@ class EMAlgorithm:
             #                      epsilon = self.EPS)
             #===================================================================            
             
-            print(res.fun)
-            if res.fun[0, 0] < glopt:
-                finres = res
-                glopt = res.fun[0, 0]
-        print(finres)
-        self.X[g] = np.matrix(finres.x)               
+        #=======================================================================
+        #     print(res.fun)
+        #     if res.fun[0, 0] < glopt:
+        #         finres = res
+        #         glopt = res.fun[0, 0]
+        # print(finres)
+        #=======================================================================
+        print(res.fun)
+        self.X[g] = np.matrix(res.x)               
         
         #=======================================================================
         #     print(res[1])
@@ -260,8 +265,10 @@ class EMAlgorithm:
     def QFunction(self, X, g):
         X = np.matrix(X)
         temp = self.Tau[:,self.NXSUM[g]:self.NXSUM[g+1]].dot(X.T)
-        if not (temp > self.EPS).all():
-            return float('inf')
+        #=======================================================================
+        # if not (not (self.Mu[:g] > self.EPS) or temp > self.EPS).all():
+        #     return np.matrix(float('inf'))
+        #=======================================================================
         return -self.Mu[:,g].multiply(np.log(temp)).T.dot(self.W.T)
     
     def QDerivate(self, X, g):
@@ -300,7 +307,8 @@ class EMAlgorithm:
         # print(res)
         # self.X[0] = np.matrix(res.x)
         #=======================================================================
-               
+        prevZ = self.Z.copy()
+        print(self.Z)
         proc = 0
         while proc < time:
             if proc % 1 == 0:
@@ -308,6 +316,13 @@ class EMAlgorithm:
             proc += 1
             self.eStep()
             self.mStep()
+            print('inner')
+            print(prevZ)
+            print(self.Z)
+            if (np.fabs(self.Z-prevZ) < self.EPS).all():
+                break 
+            else:
+                prevZ = self.Z.copy()
                 
         self.computePSI()
         return

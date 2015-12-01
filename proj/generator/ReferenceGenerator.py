@@ -46,12 +46,12 @@ class ReferenceGenerator:
     
     def outputExonBoundaryBed(self):
         exonBoundarydOut = open('../input/exonBoundary.bed', 'w')
+        s = 0
         for g in range(self.NG):
             print('Gene' + str(g), end = '\t', file = exonBoundarydOut)
             print(self.NE[g], end = '\t', file = exonBoundarydOut)
             st = []
             ed = []
-            s = 0
             for e in range(self.NE[g]):
                 st.append(s)
                 s += len(self.gene[g][e])
