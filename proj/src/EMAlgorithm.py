@@ -198,50 +198,52 @@ class EMAlgorithm:
     def optimizeQ(self, g):
         glopt = float('inf')
         
-        for t in range(1):
-            xInit = self.initialX(g)
-            #print(self.A[g].dot(self.X[g].T))
-            print((self.A[g].dot(self.X[g].T) >= 0).all())
-            print(np.ones((1, self.NX[g])).dot(self.X[g].T))
-            res = opt.minimize(fun = self.QFunction,
-                               x0 = xInit,
-                               args = (g,),
-                               tol = self.EPS, 
-                               bounds = [(0, 1) for i in range(self.NX[g])],
-                               method = 'SLSQP',
-                               jac = self.QDerivate,
-                               constraints = ({'type':'ineq',
-                                               'fun':lambda X: self.A[g].dot(X.T),
-                                               'jac':lambda X: self.A[g]},
-                                              {'type':'eq', 
-                                               'fun':lambda X: np.ones((1, self.NX[g])).dot(X.T) - 1,
-                                               'jac':lambda X: np.ones((1, self.NX[g]))}),
-                                #===============================================
-                                # options = {'eps' : 1,
-                                #            'maxiter' : 100,
-                                #            'ftol' : self.EPS,
-                                #            'disp' : True
-                                #            }
-                                #===============================================
-                               )
-            
-            #===================================================================
-            # res = opt.fmin_slsqp(func = self.QFunction, 
-            #                      x0 = xInit, 
-            #                      f_eqcons = lambda X, g: np.ones((1, self.NX[g])).dot(X.T) - 1, 
-            #                      f_ieqcons = lambda X, g: self.A[g].dot(X.T), 
-            #                      bounds = [(0, 1) for i in range(self.NX[g])], 
-            #                      fprime = self.QDerivate, 
-            #                      fprime_eqcons = lambda X, g: np.ones((1, self.NX[g])), 
-            #                      fprime_ieqcons = lambda X, g: self.A[g], 
-            #                      args = (g,), 
-            #                      iter = 100,
-            #                      acc = self.EPS, 
-            #                      disp = False, 
-            #                      full_output = True, 
-            #                      epsilon = self.EPS)
-            #===================================================================            
-            
+        xInit = self.initialX(g)
+        print('Gene ' + str(g))
+        #print(self.A[g].dot(self.X[g].T))
+        #===================================================================
+        # print((self.A[g].dot(self.X[g].T) >= 0).all())
+        # print(np.ones((1, self.NX[g])).dot(self.X[g].T))
+        #===================================================================
+        res = opt.minimize(fun = self.QFunction,
+                       x0 = xInit,
+                       args = (g,),
+                       tol = self.EPS, 
+                       bounds = [(0, 1) for i in range(self.NX[g])],
+                       method = 'SLSQP',
+                       jac = self.QDerivate,
+                       constraints = ({'type':'ineq',
+                                       'fun':lambda X: self.A[g].dot(X.T),
+                                       'jac':lambda X: self.A[g]},
+                                      {'type':'eq', 
+                                       'fun':lambda X: np.ones((1, self.NX[g])).dot(X.T) - 1,
+                                       'jac':lambda X: np.ones((1, self.NX[g]))}),
+                        #===============================================
+                        # options = {'eps' : 1,
+                        #            'maxiter' : 100,
+                        #            'ftol' : self.EPS,
+                        #            'disp' : True
+                        #            }
+                        #===============================================
+                       )
+
+        #===================================================================
+        # res = opt.fmin_slsqp(func = self.QFunction, 
+        #                      x0 = xInit, 
+        #                      f_eqcons = lambda X, g: np.ones((1, self.NX[g])).dot(X.T) - 1, 
+        #                      f_ieqcons = lambda X, g: self.A[g].dot(X.T), 
+        #                      bounds = [(0, 1) for i in range(self.NX[g])], 
+        #                      fprime = self.QDerivate, 
+        #                      fprime_eqcons = lambda X, g: np.ones((1, self.NX[g])), 
+        #                      fprime_ieqcons = lambda X, g: self.A[g], 
+        #                      args = (g,), 
+        #                      iter = 100,
+        #                      acc = self.EPS, 
+        #                      disp = False, 
+        #                      full_output = True, 
+        #                      epsilon = self.EPS)
+        #===================================================================            
+
         #=======================================================================
         #     print(res.fun)
         #     if res.fun[0, 0] < glopt:
@@ -281,13 +283,15 @@ class EMAlgorithm:
         jac /= np.sum(jac)
         return -jac.A1
      
-    def likelihoodFunction(self, x):
-        temp = np.zeros((self.NW, 1))
-        x = np.matrix(x)
-        for g in range(self.NG):
-            temp += self.Z[0, g] * self.Tau[:,self.NXSUM[g]:self.NXSUM[g+1]].dot(x.T)
-        temp = scp.log(temp)
-        return -self.W.dot(temp)
+    #===========================================================================
+    # def likelihoodFunction(self, x):
+    #     temp = np.zeros((self.NW, 1))
+    #     x = np.matrix(x)
+    #     for g in range(self.NG):
+    #         temp += self.Z[0, g] * self.Tau[:,self.NXSUM[g]:self.NXSUM[g+1]].dot(x.T)
+    #     temp = scp.log(temp)
+    #     return -self.W.dot(temp)
+    #===========================================================================
      
     #===========================================================================
     # def optimizeLikelihood(self):
@@ -312,14 +316,15 @@ class EMAlgorithm:
         proc = 0
         while proc < time:
             if proc % 1 == 0:
-                print(str(proc) + ' iteration processed...')
+                print('\n\n+++++' + str(proc) + ' iteration processed...')
             proc += 1
             self.eStep()
             self.mStep()
-            print('inner')
+            print('Comparing Z...')
             print(prevZ)
             print(self.Z)
-            if (np.fabs(self.Z-prevZ) < self.EPS).all():
+            if (np.fabs(self.Z-prevZ) < 1e-10).all():
+                print('Converged!')
                 break 
             else:
                 prevZ = self.Z.copy()
