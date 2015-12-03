@@ -10,7 +10,7 @@ timeSt = time.clock()
 exonBoundaryFile = r'../input/exonBoundary.bed'
 genomeFile = r'../input/genome.fa'
 readsFile = r'../input/reads.fq'
-K = 25
+K = 15
 readLength = 75
 kmerHasher = KmerHash(K, readLength, genomeFile, exonBoundaryFile, readsFile)
 #===============================================================================
@@ -53,7 +53,7 @@ mse = 0.0
 nmse = 0
 for g in range(solver.NG):
     for e in range(solver.NE[g]):
-        mse += (solver.X[g][0, e] - GX[g][e]) ** 2
+        mse += (solver.Psi[g][e] - GPsi[g][e]) ** 2
         nmse += 1
 print(np.sqrt(mse / nmse)) 
 print('Time: ' + str(time.clock() - timeSt) + 's')

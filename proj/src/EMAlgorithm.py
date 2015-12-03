@@ -3,6 +3,7 @@ import scipy.optimize as opt
 import scipy.sparse as spa
 import numpy as np
 import json
+import time
 
 class EMAlgorithm:
     def __init__(self, kmerHasher):
@@ -196,6 +197,8 @@ class EMAlgorithm:
         return
      
     def optimizeQ(self, g):
+        timeSt = time.clock() 
+        
         glopt = float('inf')
         
         xInit = self.initialX(g)
@@ -262,6 +265,7 @@ class EMAlgorithm:
         # print(finres)
         # self.X[g] = np.matrix(finres[0])
         #=======================================================================
+        print('Time: ' + str(time.clock() - timeSt) + ' s')
         return
      
     def QFunction(self, X, g):
@@ -346,7 +350,7 @@ class EMAlgorithm:
                 sumJu += tempPsi[0, e]
                 e += 1
             tempPsi /= (sumEx - sumJu)
-            self.Psi.append(tempPsi[0,:self.NE[g]].tolist())
+            self.Psi.append(tempPsi[0,:self.NE[g]].A1.tolist())
         print(self.Psi)
         psiFile = open('../output/PsiResult.json', 'w')
         json.dump(self.Psi, psiFile)
