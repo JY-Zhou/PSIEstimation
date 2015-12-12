@@ -1,6 +1,7 @@
 import json
 
 class KmerHash:
+    #@profile
     def __init__(self, K, readLength, genomeFile, exonBoundaryFile, readsFile):
         self.K = K
         self.readLength = readLength
@@ -8,8 +9,10 @@ class KmerHash:
         self.geneBoundary = []
         self.readReads(readsFile)
         self.readGenome(genomeFile, exonBoundaryFile)
+        self.mergeKmer()
         json.dump(self.kmerTable, open('../output/kmerTable.json', 'w'))
     
+    #@profile
     def readReads(self, readsFile):
         fileIn = open(readsFile, 'r')
         proc = 0
@@ -32,12 +35,13 @@ class KmerHash:
             self.kmerTable[kmer] = (val, {})
         return
     
+    #@profile
     def readGenome(self, genomeFile, exonBoundaryFile):
         exonBoundaryIn = open(exonBoundaryFile,'r')
         COL_EXONNUM = 1
         COL_EXONST = 2
         COL_EXONED = 3
-        for line in exonBoundaryIn:            
+        for line in exonBoundaryIn:
             sub = line[:-1].split('\t')
             self.geneBoundary.append([])
             subst = sub[COL_EXONST].split(',')
@@ -60,13 +64,15 @@ class KmerHash:
                 geneSeq += line[:-1]
         genomeIn.close()
         
-        self.temp = []
-        self.id = {}
-        l = 0
-        while l + self.K <= len(geneSeq):
-            self.temp.append(geneSeq[l:l+self.K])
-            self.id[geneSeq[l:l+self.K]] = l
-            l += 1
+        #=======================================================================
+        # self.temp = []
+        # self.id = {}
+        # l = 0
+        # while l + self.K <= len(geneSeq):
+        #     self.temp.append(geneSeq[l:l+self.K])
+        #     self.id[geneSeq[l:l+self.K]] = l
+        #     l += 1
+        #=======================================================================
         
         for g in range(self.NG):
             print('Gene-' + str(g) + ' processed...')
@@ -123,9 +129,39 @@ class KmerHash:
                         l += 1
         return
     
+    #@profile
     def kmerContribution(self, st, ed, l, r, L):
         cil = min(L - self.readLength + 1, self.readLength - self.K + 1)
         ret = min(l - st + 1, ed - r + 1)
         return min(ret, cil)
-        
+    
+    #@profile
+    def mergeKmer(self):
+        temp = {}
+        newTable = {}
+        for x in self.kmerTable:
+            if not str(self.kmerTable[x]) in temp:
+                temp[str(self.kmerTable[x])] = x
+                newTable[x] = tuple(self.kmerTable[x])
+            else:
+                newx = temp[str(self.kmerTable[x])]
+                newdic = {}
+                for loc in newTable[newx][1]:
+                    newdic[loc] = newTable[newx][1][loc] + self.kmerTable[x][1][loc]
+                newTable[newx] = (newTable[newx][0] + self.kmerTable[x][0],
+                                  newdic)
+            
+        #=======================================================================
+        # for x in newTable:
+        #     if newTable[x] != self.kmerTable[x]:
+        #         print(x)
+        #         print(newTable[x])
+        #         print(self.kmerTable[x])
+        #=======================================================================
+                    
+            
+        self.kmerTable = newTable
+        self.NW = len(self.kmerTable)
+        #exit()
+        return 
     

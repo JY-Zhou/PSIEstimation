@@ -1,6 +1,6 @@
 import json
-from generator.ReferenceGenerator import ReferenceGenerator
-from generator.ReadGenerator import ReadGenerator
+from ReferenceGenerator import ReferenceGenerator
+from ReadGenerator import ReadGenerator
 
 confFile = open('../kits/GenerationConfig.json', 'r')
 
