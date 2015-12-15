@@ -378,7 +378,7 @@ class EMAlgorithm:
             proc += 1
             self.eStep()
             self.offlineProcess()
-            self.mStep(20)
+            self.mStep(100)
             print('Comparing Z...')
             print(prevZ)
             print(self.Z)

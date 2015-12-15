@@ -38,7 +38,7 @@ class ReferenceGenerator:
         for g in range(self.NG):
             for e in range(self.NE[g]):
                 s += self.gene[g][e]
-        print('chr1>', file = genomeOut)
+        print('>chr1', file = genomeOut)
         st = 0
         while len(s[st: st+50]) > 0:
             print(s[st: st+50], file = genomeOut)

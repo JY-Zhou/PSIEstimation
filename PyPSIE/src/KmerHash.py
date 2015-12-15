@@ -57,6 +57,13 @@ class KmerHash:
         for g in range(self.NG):
             self.NE.append(len(self.geneBoundary[g]))
         
+        #=======================================================================
+        # for g in range(self.NG):
+        #     for e in range(self.NE[g]):
+        #         print(self.geneBoundary[g][e][0], end = '\t')
+        #         print(self.geneBoundary[g][e][1])
+        #=======================================================================
+        
         genomeIn = open(genomeFile, 'r')
         geneSeq = ''
         for line in genomeIn:
@@ -140,11 +147,16 @@ class KmerHash:
         temp = {}
         newTable = {}
         for x in self.kmerTable:
-            if not str(self.kmerTable[x]) in temp:
-                temp[str(self.kmerTable[x])] = x
+            keys = sorted(self.kmerTable[x][1].keys())
+            value = str(self.kmerTable[x][0])
+            for y in keys:
+                value += y + str(self.kmerTable[x][1][y])
+            
+            if not value in temp:
+                temp[value] = x
                 newTable[x] = tuple(self.kmerTable[x])
             else:
-                newx = temp[str(self.kmerTable[x])]
+                newx = temp[value]
                 newdic = {}
                 for loc in newTable[newx][1]:
                     newdic[loc] = newTable[newx][1][loc] + self.kmerTable[x][1][loc]

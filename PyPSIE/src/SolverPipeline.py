@@ -14,17 +14,27 @@ def work():
     K = 15
     readLength = 75
     kmerHasher = KmerHash(K, readLength, genomeFile, exonBoundaryFile, readsFile)
+    
+    print(time.clock() - timeSt)
+    
     print('Hashing Finished!')
     print('Total kmers: ' + str(len(kmerHasher.kmerTable)))
-    #===============================================================================
+    #===========================================================================
     # for x in kmerHasher.temp:
-    #     #print(x)
+    #     print(x)
     #     print('#'+str(kmerHasher.id[x]), end = '\t')
     #     if x in kmerHasher.kmerTable:
-    #         print(kmerHasher.kmerTable[x])
-    #     else
-    #         print('0')
-    #===============================================================================
+    #         print(kmerHasher.kmerTable[x][0], end = '\t')
+    #         temp = kmerHasher.kmerTable[x][1].keys()
+    #         temp = sorted(temp)
+    #         for y in temp:
+    #             print(y, end = ':')
+    #             print(int(kmerHasher.kmerTable[x][1][y]*100000), end = '\t')
+    #         print()
+    #     else:
+    #         print('0\t')
+    #===========================================================================
+    
     solver = EMAlgorithm(kmerHasher)
     print('Start iteration')
     solver.work(10)
