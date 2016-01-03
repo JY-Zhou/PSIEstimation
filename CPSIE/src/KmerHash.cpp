@@ -240,4 +240,5 @@ void KmerHash::mergeKmerTable() {
             it ++;
         }
     }
+    NW = temp.size();
 }

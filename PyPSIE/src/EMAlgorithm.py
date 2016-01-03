@@ -61,6 +61,9 @@ class EMAlgorithm:
                     ej += 1
                     col += 1
         
+        for x in self.L:
+            print(x)
+
         #self.Tau = spa.lil_matrix((self.NW, self.NXSUM[self.NG]))
         self.Tau = []
         for g in range(self.NG):
@@ -91,6 +94,7 @@ class EMAlgorithm:
             for g in gSet:
                 self.MuNonZero.append((row, g))
             row += 1
+        print(len(self.Tau[0].nonzero()[0]))
             
     #@profile
     def initialConstraints(self):

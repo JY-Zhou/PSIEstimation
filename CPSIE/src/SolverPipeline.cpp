@@ -41,6 +41,8 @@ int main() {
     //    }
     //    cout << endl;
     //}
+    EMAlgorithm solver(kmerHasher);
+    solver.work(10);
     cout << "Run passed!" << endl;
     return 0;
 }
