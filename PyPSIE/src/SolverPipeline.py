@@ -51,7 +51,7 @@ def work():
     # print((solver.A[0].dot(solver.X[0].T) > -1e-15).all())
     # print(np.ones((1, solver.NX[0])).dot(solver.X[0].T))
     #===============================================================================
-     
+      
     print('\n======Ground Truth====================')
     #GX = json.load(open('../kits/XGroundTruth.json', 'r'))
     #print('Ground Truth\'s X')
@@ -60,7 +60,7 @@ def work():
     print('Ground Truth\'s Psi')
     for val in GPsi:
         print(val)
-
+ 
     print('\n======Evaluation============')
     print('RMSE:')
     mse = 0.0

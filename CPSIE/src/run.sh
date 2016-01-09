@@ -1,0 +1,2 @@
+make
+./SolverPipeline.exe

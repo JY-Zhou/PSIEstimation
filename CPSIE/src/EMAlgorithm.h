@@ -14,9 +14,11 @@
 
 using namespace std;
 
-extern "C" {
-    void slsqp(const int* M, const int* MEQ);
-}
+extern "C" void slsqp_(int* M, int* MEQ, int* LA, int* N,
+                        double* X, double* XL, double* XU, 
+                        double* F, double* C, double* G, double* A,
+                        double* ACC, int* ITER, int* MODE,
+                        double* W, int* L_W, int* JW, int* L_JW);
 
 class EMAlgorithm {
     public:
@@ -39,20 +41,25 @@ class EMAlgorithm {
         vector <Eigen::MatrixXd> X;
         vector <Eigen::MatrixXd> Mu;
 
+        vector <vector <double> > PSI;
+
         EMAlgorithm();
-        EMAlgorithm(const KmerHash&);
+        EMAlgorithm(KmerHash&);
         ~EMAlgorithm();
 
         void initialIndice();
-        void initialCoefficients(const KmerHash&);
+        void initialCoefficients(KmerHash&);
         void initialConstraints();
-
+        Eigen::MatrixXd initialX(int);
         void initialVariables();
+
         void eStep();
-        void mStep(int);
-        void optimizeQ(int, int);
+        void mStep();
+        void optimizeQ(int);
         double QFunction(Eigen::MatrixXd, int);
-        Eigen::MatrixXd QDerivate(Eigen::MatrixXd, int);
+        Eigen::MatrixXd QGradient(Eigen::MatrixXd, int);
+        Eigen::MatrixXd QConstraints(Eigen::MatrixXd, int);
+        Eigen::MatrixXd QConstraintsNormal(Eigen::MatrixXd, int);
         void work(int);
 
         void computePSI();

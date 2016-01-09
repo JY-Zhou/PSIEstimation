@@ -94,7 +94,7 @@ class EMAlgorithm:
             for g in gSet:
                 self.MuNonZero.append((row, g))
             row += 1
-        print(len(self.Tau[0].nonzero()[0]))
+        #print(len(self.Tau[0].nonzero()[0]))
             
     #@profile
     def initialConstraints(self):
@@ -214,6 +214,8 @@ class EMAlgorithm:
         for g in range(self.NG):
             self.Mu[g] = spa.lil_matrix(np.divide(self.Mu[g], tot))            
             
+        print('look at me!!!' + str(self.Mu[0].sum()))
+        print(self.W.sum())
         print(self.Z)
         return
      
@@ -228,6 +230,7 @@ class EMAlgorithm:
  
         for g in range(self.NG):
             self.optimizeQ(g, t)
+            #pass
         return
     
     #@profile
@@ -236,8 +239,8 @@ class EMAlgorithm:
         
         glopt = float('inf')
         
-        xInit = self.initialX(g)
-        #xInit = self.X[g].copy()
+        #xInit = self.initialX(g)
+        xInit = self.X[g].copy()
         print('Gene ' + str(g))
         #print(self.A[g].dot(self.X[g].T))
         #===================================================================
@@ -289,7 +292,9 @@ class EMAlgorithm:
         # print(finres)
         #=======================================================================
         print(res.fun)
+        print(res.message)
         self.X[g] = np.matrix(res.x)               
+        print(self.X[g].sum())
         
         #=======================================================================
         #     print(res[1])
@@ -364,9 +369,22 @@ class EMAlgorithm:
     #     return res
     #===========================================================================
 
+    def uniformInit(self):
+        for g in range(self.NG):
+            self.Z[0, g] = 1.0 / self.NG
+            e = 0;
+            while e < self.NE[g]:
+                self.X[g][0, e] = 0.8/self.NE[g]
+                e += 1
+            while e < self.NX[g]:
+                self.X[g][0, e] = 0.2/(self.NX[g] - self.NE[g])
+                e += 1
+
     #@profile
     def work(self, time):
         self.initialVariables()
+        self.uniformInit()
+        
                 
         #=======================================================================
         # res = self.optimizeLikelihood()        
@@ -376,6 +394,7 @@ class EMAlgorithm:
         prevZ = self.Z.copy()
         print(self.Z)
         proc = 0
+        #time = 1
         while proc < time:
             if proc % 1 == 0:
                 print('\n\n+++++' + str(proc) + ' iteration processed...')
@@ -383,6 +402,32 @@ class EMAlgorithm:
             self.eStep()
             self.offlineProcess()
             self.mStep(100)
+            
+            #===================================================================
+            # print('===============Debug==================')
+            # print(self.X[0])
+            # print(self.A[0].dot(self.X[0].T) > -self.EPS)
+            # print(self.X[0].sum())
+            # print('Tau[0] = ' + str(self.Tau[0].sum()))
+            #  
+            # print(len(self.Mu[0].nonzero()[0]))
+            # print(self.Mu[0].shape)
+            # print(self.Mu[0].sum())
+            # print(len(self.coef[0].nonzero()[0]))
+            # print(self.coef[0].shape)
+            # print(self.coef[0].sum())
+            #  
+            #  
+            # temp = self.QFunction(self.X[0], 0)
+            # print('QFunc(0) = ', end = '')
+            # print(temp)
+            # print('QGrad(0) = [')
+            # for x in self.QDerivate(self.X[0], 0):
+            #     print(x)
+            # print(']')
+            # print('===============Debug==================')
+            #===================================================================
+            
             print('Comparing Z...')
             print(prevZ)
             print(self.Z)

@@ -1,11 +1,17 @@
 #include <iostream>
 #include <algorithm>
+#include <ctime>
 #include "KmerHash.h"
 #include "EMAlgorithm.h"
 
 using namespace std;
 
-int main() {
+double check() {
+    double rsme = 0.0;
+    return rsme;
+}
+
+void work() {
     cout << "Compile passed!" << endl;
     string readPath = "../input/reads.fq";
     string genomePath = "../input/genome.fa";
@@ -44,5 +50,11 @@ int main() {
     EMAlgorithm solver(kmerHasher);
     solver.work(10);
     cout << "Run passed!" << endl;
+}
+
+int main() {
+    long st = clock();
+    work();
+    cout << "Time elapsed: " << (clock() - st) / 1000.0 << "s. "<< endl;
     return 0;
 }

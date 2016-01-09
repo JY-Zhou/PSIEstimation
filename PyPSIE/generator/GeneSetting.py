@@ -15,7 +15,7 @@ ISOEXON_L = 3
 EXPLV_L = 1
 EXPLV_U = 2
 
-NG = 10
+NG = 50
 print('===NG===')
 print(NG)
 
