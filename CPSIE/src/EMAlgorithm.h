@@ -2,6 +2,8 @@
 #define EMALGORITHM_H
 
 #include <iostream>
+#include <fstream>
+#include <sstream>
 #include <vector>
 #include <thread>
 #include <ctime>
@@ -11,6 +13,8 @@
 #include <Eigen/Dense>
 #include <Eigen/Sparse>
 #include "KmerHash.h"
+
+#define EIGEN_DONT_PARALLELIZE
 
 using namespace std;
 

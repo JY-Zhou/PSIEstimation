@@ -54,7 +54,11 @@ void work() {
 
 int main() {
     long st = clock();
+    time_t n_st, n_ed;
+    time(&n_st);
     work();
-    cout << "Time elapsed: " << (clock() - st) / 1000.0 << "s. "<< endl;
+    time(&n_ed);
+    cout << "CPU Time elapsed: " << (clock() - st) / 1000.0 << "s. "<< endl;
+    cout << "Natural Time elapsed: " << difftime(n_ed, n_st) << "s. " << endl;
     return 0;
 }

@@ -1,5 +1,6 @@
 import json
 import random
+import sys
 
 EXONNUM_L = 5
 EXONNUM_U = 10
@@ -15,7 +16,7 @@ ISOEXON_L = 3
 EXPLV_L = 1
 EXPLV_U = 2
 
-NG = 200
+NG = int(sys.argv[1])
 print('===NG===')
 print(NG)
 
@@ -33,9 +34,9 @@ for g in range(NG):
         lVal = random.randint(EXONLEN_L, EXONLEN_U)
         Ltemp.append(lVal)
     L.append(Ltemp)
-print('===L===')
-for x in L:
-    print(x)
+#print('===L===')
+#for x in L:
+#    print(x)
 
 IsoNum = []
 for g in range(NG):
@@ -55,9 +56,9 @@ for g in range(NG):
             temp = sorted(temp)
         Isotemp.append(temp)
     Iso.append(Isotemp)
-print('===Iso===')
-for x in Iso:
-    print(x)
+#print('===Iso===')
+#for x in Iso:
+#    print(x)
     
 expLv = []
 for g in range(NG):
@@ -65,9 +66,9 @@ for g in range(NG):
     for i in range(IsoNum[g]):
         expLvtemp.append(random.randint(EXPLV_L, EXPLV_U))
     expLv.append(expLvtemp)
-print('===expLv===')
-for x in expLv:
-    print(x)
+#print('===expLv===')
+#for x in expLv:
+#    print(x)
     
 depth = 1
 readLength = 75

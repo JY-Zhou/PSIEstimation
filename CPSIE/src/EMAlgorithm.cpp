@@ -1,4 +1,5 @@
 #include "EMAlgorithm.h"
+#define EIGEN_DONT_PARALLELIZE
 
 EMAlgorithm::EMAlgorithm() {}
 
@@ -44,7 +45,7 @@ void EMAlgorithm::initialCoefficients(KmerHash& kmerHasher) {
             }
         }
     }
-    cerr << "Length initialized" << endl;
+    cout << "Length initialized" << endl;
     
     Tau.clear();
     for(int g = 0; g < NG; g ++) {
@@ -207,8 +208,14 @@ void EMAlgorithm::eStep() {
         temp = Tau[g] * X[g] * Z(g, 0);
         temp = temp.cwiseQuotient(tot);
         temp = temp.cwiseProduct(W);
+        for(int w = 0; w < NW; w ++) {
+            if(std::isnan(temp(w, 0))) {
+                temp(w, 0) = 0;
+            }
+        }
         Mu[g] = temp.sparseView();
     }
+
     //for(int i = 0; i < Mu[0].rows() ; i ++) {
     //    cout << Mu[0](i, 0) << endl;
     //    if(i % 50 == 0) {
@@ -230,19 +237,33 @@ void EMAlgorithm::mStep() {
         Z(g, 0) /= tot;
     }
 
+    //#pragma omp parallel for schedule(dynamic)
     for(int g = 0; g < NG; g ++) {
         optimizeQ(g);
     }
+    //thread task[8];
+    //for(int i = 0 ; i < 8 ; i ++) {
+    //    task[i] = thread([i] {cout <<">>>>Thread " << i << " run.." << endl;});
+    //}
+    //int g = 0; 
+    //while(g < NG) {
+    //    task[g % 8].join();
+    //    task[g % 8] = thread([this, g] {optimizeQ(g);} );
+    //    g ++;
+    //}
+    //for(int i = 0 ; i < 8 ; i ++) {
+    //    task[i].join();
+    //}
 }
 
 void EMAlgorithm::optimizeQ(int g) {
-    cout << "\nGene-" << g << " started ...." << endl;
+    //cout << "\nGene-" << g << " started ...." << endl;
     int f_M = NA[g] + 1;
     int f_MEQ = 1;
     int f_LA = f_M;
     int f_N = NX[g];
-    //Eigen::MatrixXd f_X = initialX(g);
-    Eigen::MatrixXd f_X = X[g];
+    Eigen::MatrixXd f_X = initialX(g);
+    //Eigen::MatrixXd f_X = X[g];
     Eigen::MatrixXd f_XL;
     Eigen::MatrixXd f_XU;
     f_XL.setZero(f_N, 1);
@@ -251,7 +272,7 @@ void EMAlgorithm::optimizeQ(int g) {
     Eigen::MatrixXd f_C = QConstraints(f_X, g);
     Eigen::MatrixXd f_G = QGradient(f_X, g);
     Eigen::MatrixXd f_A = QConstraintsNormal(f_X, g);
-    double f_ACC = EPS;
+    double f_ACC = 1e-9;
     int f_ITER = 100;
     int f_MODE = 0;
     int f_N1 = f_N + 1;
@@ -267,55 +288,15 @@ void EMAlgorithm::optimizeQ(int g) {
     f_JW.setZero(f_L_JW, 1);
     int t = 0;
     
-    //cout << "============C============" << endl;
-    //cout << "len = " << f_M << endl;
-    //double* pnt = f_C.data();
-    //cout << "[ " << endl;
-    //for(int i = 0 ; i < f_M; i ++) {
-    //    cout << *pnt << ", ";
-    //    pnt ++;
-    //}
-    //cout << "] " << endl;
-    //cout << "============A============" << endl;
-    //cout << "len = " << f_LA << endl;
-    //pnt = f_A.data();
-    //for(int i = 0 ; i < f_LA; i ++) {
-    //    cout << "[ ";
-    //    for(int j = 0; j < f_N + 1; j ++) {
-    //        cout << *pnt << ", ";
-    //        pnt ++;
-    //    }
-    //    cout << "] " << endl;
-    //    cout << "len = " << f_N + 1 << endl;
-    //}
-    //cout << "===========G============" << endl;
-    //cout << "len = " << f_N + 1 << endl;
-    //pnt = f_G.data();
-    //for(int i = 0 ; i < f_N + 1; i ++) {
-    //    cout << *pnt << ", ";
-    //    pnt ++;
-    //}
-    //cout << endl;
-    //cout << "============F============" << endl;
-    //cout << f_F << endl;
-    //cout << "=========================" << endl;
-    //cout << "M " << f_M << endl;
-    //cout << "MEQ " << f_MEQ << endl;
-    //cout << "LA " << f_LA << endl;
-    //cout << "N " << f_N << endl;
-    //cout << "ACC " << f_ACC << endl;
-    //cout << "ITER " << f_ITER << endl;
-    //cout << "MODE " << f_MODE << endl;
-    //cout << "L_W " << f_L_W << endl;
-    //cout << "L_JW " << f_L_JW << endl;
-    //cout << "=========================" << endl;
+    //ostringstream log;
 
-    
+    //log << "Now at gene " << g << endl;
+
     while(true) {
         t ++;
-        //cout << "-Monitor::::"<< t << ": " <<  f_X.sum() << endl;
-        //cout << "==" << endl;
-        //cout << "MODE " << f_MODE << endl;
+        //log << g << ": " <<  "-Monitor::::"<< t << ": " <<  f_X.sum() << endl;
+        //log << g << ": " <<  "==" << endl;
+        //log << g << ": " <<  "MODE " << f_MODE << endl;
         if(f_MODE == 0 || f_MODE == 1) {
             f_F = QFunction(f_X, g);
             f_C = QConstraints(f_X, g);
@@ -326,17 +307,16 @@ void EMAlgorithm::optimizeQ(int g) {
             f_A = QConstraintsNormal(f_X, g);
         }
 
-        //cout << "X==" << endl;
-        //cout << f_X << endl;
-        //cout << "F==" << endl;
-        //cout << f_F << endl;
-        //cout << "C==" << endl;
-        //cout << f_C << endl;
-        //cout << "G==" << endl;
-        //cout << f_G << endl;
-        //cout << "A==" << endl;
-        //cout << f_A << endl;
-            
+        //log << g << ": " <<  "X==" << endl;
+        //log << g << ": " <<  f_X << endl;
+        //log << g << ": " <<  "F==" << endl;
+        //log << g << ": " <<  f_F << endl;
+        //log << g << ": " <<  "C==" << endl;
+        //log << g << ": " <<  f_C << endl;
+        //log << g << ": " <<  "G==" << endl;
+        //log << g << ": " <<  f_G << endl;
+        //log << g << ": " <<  "A==" << endl;
+        //log << g << ": " <<  f_A << endl;
 
         slsqp_(&f_M, &f_MEQ, &f_LA, &f_N,
               f_X.data(), f_XL.data(), f_XU.data(),
@@ -345,69 +325,36 @@ void EMAlgorithm::optimizeQ(int g) {
               f_W.data(), &f_L_W, f_JW.data(), &f_L_JW);
 
         if(f_MODE != -1 and f_MODE != 1) {
-            //cout << f_MODE << endl;
+            //log << g << ": " <<  f_MODE << endl;
             break;
         }
     }
-    cout << "iter time " << t << endl;
-    cout << "x sumation " << f_X.sum() << endl;
-    
-    cout << "Optimal is " << f_F << endl;
-    cout << "Exit Mode is " << f_MODE << endl;
-    //cout << "============C============" << endl;
-    //cout << "len = " << f_M << endl;
-    //double* pnt = f_C.data();
-    //cout << "[ " << endl;
-    //for(int i = 0 ; i < f_M; i ++) {
-    //    cout << *pnt << ", ";
-    //    pnt ++;
+    //cout << "iter time " << t << endl;
+    //cout << "x sumation " << f_X.sum() << endl;
+    //
+    //cout << "Optimal is " << f_F << endl;
+    //cout << "Exit Mode is " << f_MODE << endl;
+    //if(std::isnan(f_F) or std::isnan(f_X.sum())) {
+    //    cerr << log.str() << endl;
+    //} else {
+    //    log.str("");
     //}
-    //cout << "] " << endl;
-    //cout << "============A============" << endl;
-    //cout << "len = " << f_LA << endl;
-    //pnt = f_A.data();
-    //for(int i = 0 ; i < f_LA; i ++) {
-    //    cout << "[ ";
-    //    for(int j = 0; j < f_N + 1; j ++) {
-    //        cout << *pnt << ", ";
-    //        pnt ++;
-    //    }
-    //    cout << "] " << endl;
-    //    cout << "len = " << f_N + 1 << endl;
-    //}
-    //cout << "===========G============" << endl;
-    //cout << "len = " << f_N + 1 << endl;
-    //pnt = f_G.data();
-    //for(int i = 0 ; i < f_N + 1; i ++) {
-    //    cout << *pnt << ", ";
-    //    pnt ++;
-    //}
-    //cout << endl;
-    //cout << "============F============" << endl;
-    //cout << f_F << endl;
-    //cout << "============X============" << endl;
-    //cout << f_X << endl;
-    //cout << "=========================" << endl;
-    //cout << "M " << f_M << endl;
-    //cout << "MEQ " << f_MEQ << endl;
-    //cout << "LA " << f_LA << endl;
-    //cout << "N " << f_N << endl;
-    //cout << "ACC " << f_ACC << endl;
-    //cout << "ITER " << f_ITER << endl;
-    //cout << "MODE " << f_MODE << endl;
-    //cout << "L_W " << f_L_W << endl;
-    //cout << "L_JW " << f_L_JW << endl;
-    //cout << "=========================" << endl;
     X[g] = f_X;
+
+    return;
 }
 
 double EMAlgorithm::QFunction(Eigen::MatrixXd X, int g) {
+    ostringstream log;
     Eigen::MatrixXd temp = Tau[g] * X;
     temp = temp.array().log();
     int i = 0;
     for(int w = 0; w < NW; w ++) {
-        if(isinf(-temp(w, 0))) {
+        if(std::isinf(-temp(w, 0)) || std::isinf(temp(w, 0))) {
             i ++;
+            temp(w, 0) = 0;
+        }
+        if(std::isnan(temp(w, 0))) {
             temp(w, 0) = 0;
         }
     }
@@ -415,7 +362,13 @@ double EMAlgorithm::QFunction(Eigen::MatrixXd X, int g) {
     //cout << Mu[g].rows() << ' ' << Mu[g].cols() << endl;
     //cout << temp.rows() << ' ' << temp.cols() << endl;
 
-    return - (Mu[g].transpose() * temp)(0, 0);
+    double ret = - (Mu[g].transpose() * temp)(0, 0);
+    log << "Mu[g].sum() = " << Mu[g].sum() << endl;
+    log << "temp.sum() = " << temp.sum() << endl;
+    if(std::isnan(ret)) {
+        cerr << log.str() << endl;
+    }
+    return ret;
 }
 
 Eigen::MatrixXd EMAlgorithm::QGradient(Eigen::MatrixXd X, int g) {
@@ -429,11 +382,11 @@ Eigen::MatrixXd EMAlgorithm::QGradient(Eigen::MatrixXd X, int g) {
     Eigen::MatrixXd temp = Tau[g] * X;
     temp = Mu[g].cwiseQuotient(temp);
     for(int w = 0 ; w < NW; w ++) {
-        if(isnan(temp(w, 0))) {
+        if(std::isnan(temp(w, 0))) {
             temp(w, 0) = 0;
             ////cout << "temp NAN at " << w << endl;
         }
-        if(isinf(temp(w, 0))) {
+        if(std::isinf(temp(w, 0)) || std::isinf(-temp(w, 0))) {
             //cout << "temp INF at " << w << endl;
             double s = 0;
             for(int i = 0; i < NX[g]; i ++) {
@@ -501,10 +454,13 @@ void EMAlgorithm::work(int T) {
 
     Eigen::MatrixXd preZ = Z;
     int proc = 0;
-    while(true) {
+    //while(true) {
+    while(proc < 2) {
         cout << "\n\n++++++++++" << proc ++ << " iteration processed..." << endl;
-        cout << Z << endl;
+        //cout << Z << endl;
+        cout << "E-step...." << endl;
         eStep();
+        cout << "M-step...." << endl;
         mStep();
         //cout << "==================Debug==============" << endl;
         //cout << X[0] << endl << endl;
@@ -535,7 +491,7 @@ void EMAlgorithm::work(int T) {
         } else {
             preZ = Z;
         }
-        cout << Z << endl;
+        //cout << Z << endl;
     }
     computePSI();
 }

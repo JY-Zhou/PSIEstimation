@@ -1,2 +1,3 @@
+#!/bin/bash
 make
-./SolverPipeline.exe
+time ./SolverPipeline.exe 2> debug.out
