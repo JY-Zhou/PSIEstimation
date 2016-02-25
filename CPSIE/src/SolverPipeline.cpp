@@ -1,64 +1,80 @@
 #include <iostream>
 #include <algorithm>
 #include <ctime>
+#include <cstring>
+#include <boost/lexical_cast.hpp>
 #include "KmerHash.h"
 #include "EMAlgorithm.h"
 
 using namespace std;
 
-double check() {
-    double rsme = 0.0;
-    return rsme;
+void work(string genomePath, string exonBoundaryPath, string readPath, int K, string outputPath) {
+    time_t st, ed;
+    time(&st);
+    KmerHash kmerHasher(K, genomePath, exonBoundaryPath, readPath);
+    time(&ed);
+    cout << "Elasped time " << difftime(ed, st) << "s. " << endl;
+
+    time(&st);
+    EMAlgorithm solver(kmerHasher); 
+    solver.work(10, outputPath);
+    time(&ed);
+    cout << "Elasped time " << difftime(ed, st) << "s. " << endl;
+    cout << "=== Finished! ===" << endl;
 }
 
-void work() {
-    cout << "Compile passed!" << endl;
-    string readPath = "../input/reads.fq";
-    string genomePath = "../input/genome.fa";
-    string exonBoundaryPath = "../input/exonBoundary.bed";
-    int K = 15;
-    int readLength = 75;
-    KmerHash kmerHasher(K, readLength, genomePath, exonBoundaryPath, readPath);
-    cout << kmerHasher.kmerCount.size() << " kmers" << endl;
-    //cout << kmerHasher.kmers.size() << endl;
-    //for(int i = 0; i < kmerHasher.kmers.size(); i++) {
-    //    long long id = kmerHasher.kmers[i];
-    //    string mer = "";
-    //    for(int j = 0; j < K; j++) {
-    //        int c = id & 3;
-    //        if(c == 0) mer = "A" + mer;
-    //        if(c == 1) mer = "C" + mer;
-    //        if(c == 2) mer = "G" + mer;
-    //        if(c == 3) mer = "T" + mer;
-    //        id >>= 2;
-    //    }
-    //    id = kmerHasher.kmers[i];
-    //    cout << mer << endl;
-    //    cout << "#" << i << "\t";
-    //    cout << kmerHasher.kmerCount[id] << "\t";
-    //    vector <string> temp;
-    //    for(auto& x: kmerHasher.kmerTable[id]) {
-    //        temp.push_back(x.first);
-    //    }
-    //    sort(temp.begin(), temp.end());
-    //    for(int j = 0; j < temp.size(); j++) {
-    //        //cout << x.first << ":" << (int)(x.second*100000) << "\t";
-    //        cout << temp[j] << ":" << (int)(kmerHasher.kmerTable[id][temp[j]] * 100000) << "\t";
-    //    }
-    //    cout << endl;
-    //}
-    EMAlgorithm solver(kmerHasher);
-    solver.work(10);
-    cout << "Run passed!" << endl;
+void showHelp() {
+    cout << "Allowed options" << endl;
+    cout << endl;
+    cout << "\t-g <FASTA file>\tThe reference genome." << endl;
+    cout << endl;
+    cout << "\t-a <BED/GTF file>\tThe annotation of exons." << endl;
+    cout << endl;
+    cout << "\t-r <FASTA/FASTQ file>\tThe read sequences." << endl;
+    cout << endl;
+    cout << "\t-k <Integer>\tThe length of kmer when computing. (Default: 25)" << endl;
+    cout << endl;
+    cout << "\t-o <JSON file>\tThe result of the exon inclusion ratio." << endl;
+    cout << endl;
 }
 
-int main() {
+int main(int argc, char** argv) {
+    //ios_base::sync_with_stdio(false);
+    //cin.tie(0);
+
+    if(argc != 11) {
+        showHelp();
+        return 0;
+    }
+
+    string genomePath = "";
+    string exonBoundaryPath = "";
+    string readPath = "";
+    int K = 25;
+    string outputPath = "";
+
+    for(int i = 1; i < argc; i ++) {
+        if(strcmp(argv[i], "-g") == 0) {
+            genomePath = argv[++i];
+        } else if(strcmp(argv[i], "-a") == 0) {
+            exonBoundaryPath = argv[++i];
+        } else if(strcmp(argv[i], "-r") == 0) {
+            readPath = argv[++i];
+        } else if(strcmp(argv[i], "-k") == 0) {
+            K = boost::lexical_cast<int>(argv[++i]);
+        } else if(strcmp(argv[i], "-o") == 0) {
+            outputPath = argv[++i];
+        }
+    }
+
     long st = clock();
     time_t n_st, n_ed;
     time(&n_st);
-    work();
+    work(genomePath, exonBoundaryPath, readPath, K, outputPath);
     time(&n_ed);
-    cout << "CPU Time elapsed: " << (clock() - st) / 1000.0 << "s. "<< endl;
+    cout << "CPU Time elapsed: " << (clock() - st) / CLOCKS_PER_SEC << "s. "<< endl;
+
     cout << "Natural Time elapsed: " << difftime(n_ed, n_st) << "s. " << endl;
+
     return 0;
 }

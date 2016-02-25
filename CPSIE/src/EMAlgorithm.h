@@ -13,7 +13,6 @@
 #include <Eigen/Dense>
 #include <Eigen/Sparse>
 #include "KmerHash.h"
-
 #define EIGEN_DONT_PARALLELIZE
 
 using namespace std;
@@ -43,7 +42,7 @@ class EMAlgorithm {
 
         Eigen::MatrixXd Z;
         vector <Eigen::MatrixXd> X;
-        vector <Eigen::MatrixXd> Mu;
+        vector <Eigen::SparseMatrix<double> > Mu;
 
         vector <vector <double> > PSI;
 
@@ -64,9 +63,9 @@ class EMAlgorithm {
         Eigen::MatrixXd QGradient(Eigen::MatrixXd, int);
         Eigen::MatrixXd QConstraints(Eigen::MatrixXd, int);
         Eigen::MatrixXd QConstraintsNormal(Eigen::MatrixXd, int);
-        void work(int);
+        void work(int, string);
 
-        void computePSI();
+        void computePSI(string);
 };
 
 #endif

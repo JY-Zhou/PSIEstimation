@@ -1,5 +1,4 @@
 #include "EMAlgorithm.h"
-#define EIGEN_DONT_PARALLELIZE
 
 EMAlgorithm::EMAlgorithm() {}
 
@@ -13,6 +12,8 @@ EMAlgorithm::EMAlgorithm(KmerHash& kmerHasher) {
         NE.push_back(kmerHasher.NE[g]);
     }
 
+    cout << endl;
+    cout << "=== Initialization parameters ===" << endl;
     initialIndice();
     initialCoefficients(kmerHasher);
     initialConstraints();
@@ -45,7 +46,7 @@ void EMAlgorithm::initialCoefficients(KmerHash& kmerHasher) {
             }
         }
     }
-    cout << "Length initialized" << endl;
+    cout << "Length initialization finished!" << endl;
     
     Tau.clear();
     for(int g = 0; g < NG; g ++) {
@@ -70,6 +71,9 @@ void EMAlgorithm::initialCoefficients(KmerHash& kmerHasher) {
             Tau[g].insert(row, col) = x.second;
         }
         ++ row;
+    }
+    for(int g = 0; g < NG; g ++) {
+        Tau[g].makeCompressed();
     }
     cout << "Tau initalization finished!" << endl;
 }
@@ -204,7 +208,12 @@ void EMAlgorithm::eStep() {
         temp = Tau[g] * X[g] * Z(g, 0);
         tot += temp;
     }
+    int proc = NG / 30;
     for(int g = 0; g < NG; g ++) {
+        if(g > proc) {
+            cout << ">" << flush;
+            proc += NG / 30;
+        }
         temp = Tau[g] * X[g] * Z(g, 0);
         temp = temp.cwiseQuotient(tot);
         temp = temp.cwiseProduct(W);
@@ -214,7 +223,9 @@ void EMAlgorithm::eStep() {
             }
         }
         Mu[g] = temp.sparseView();
+        Mu[g].makeCompressed();
     }
+    cout << " OK!" << endl;
 
     //for(int i = 0; i < Mu[0].rows() ; i ++) {
     //    cout << Mu[0](i, 0) << endl;
@@ -238,9 +249,15 @@ void EMAlgorithm::mStep() {
     }
 
     //#pragma omp parallel for schedule(dynamic)
+    int proc = NG / 30;
     for(int g = 0; g < NG; g ++) {
+        if(g > proc) {
+            cout << ">" << flush;
+            proc += NG / 30;
+        }
         optimizeQ(g);
     }
+    cout << " OK!" << endl;
     //thread task[8];
     //for(int i = 0 ; i < 8 ; i ++) {
     //    task[i] = thread([i] {cout <<">>>>Thread " << i << " run.." << endl;});
@@ -345,59 +362,60 @@ void EMAlgorithm::optimizeQ(int g) {
 }
 
 double EMAlgorithm::QFunction(Eigen::MatrixXd X, int g) {
-    ostringstream log;
-    Eigen::MatrixXd temp = Tau[g] * X;
-    temp = temp.array().log();
-    int i = 0;
-    for(int w = 0; w < NW; w ++) {
-        if(std::isinf(-temp(w, 0)) || std::isinf(temp(w, 0))) {
-            i ++;
-            temp(w, 0) = 0;
-        }
-        if(std::isnan(temp(w, 0))) {
-            temp(w, 0) = 0;
-        }
-    }
-    //cout << "The number of inf is: " << i << endl;
-    //cout << Mu[g].rows() << ' ' << Mu[g].cols() << endl;
-    //cout << temp.rows() << ' ' << temp.cols() << endl;
+    //Eigen::MatrixXd temp = Tau[g] * X;
+    //temp = temp.array().log();
+    //for(int w = 0; w < NW; w ++) {
+    //    if(std::isinf(-temp(w, 0)) || std::isinf(temp(w, 0))) {
+    //        temp(w, 0) = 0;
+    //    }
+    //    if(std::isnan(temp(w, 0))) {
+    //        temp(w, 0) = 0;
+    //    }
+    //}
 
-    double ret = - (Mu[g].transpose() * temp)(0, 0);
-    log << "Mu[g].sum() = " << Mu[g].sum() << endl;
-    log << "temp.sum() = " << temp.sum() << endl;
-    if(std::isnan(ret)) {
-        cerr << log.str() << endl;
+    //double ret = - (Mu[g].transpose() * temp)(0, 0);
+    //return ret;
+    Eigen::SparseMatrix<double> sX = X.sparseView();
+    sX.makeCompressed();
+    Eigen::SparseMatrix<double> temp = (Tau[g] * sX);
+    temp.makeCompressed();
+    int nz = temp.nonZeros();
+    for(auto i = temp.valuePtr(); i != temp.valuePtr() + nz; ++ i) {
+        *i = log(*i);
     }
-    return ret;
+    Eigen::SparseMatrix<double> ret = - temp.transpose() * Mu[g];
+    ret.makeCompressed();
+    return *ret.valuePtr();
 }
 
 Eigen::MatrixXd EMAlgorithm::QGradient(Eigen::MatrixXd X, int g) {
-    //cout << "++++++++++++++calGrad ++++++++" << endl;
-    //cout << "X\n" << endl;
-    //cout << "[";
-    for(int i = 0; i < NX[g]; i ++) {
-        //cout << X(i, 0) << (i == NX[g] - 1 ? "]\n" : ", ");
-    }
-    //cout << endl;
-    Eigen::MatrixXd temp = Tau[g] * X;
+    Eigen::SparseMatrix<double> sX = X.sparseView();
+    Eigen::SparseMatrix<double> temp = Tau[g] * sX;
+    temp.makeCompressed();
     temp = Mu[g].cwiseQuotient(temp);
-    for(int w = 0 ; w < NW; w ++) {
-        if(std::isnan(temp(w, 0))) {
-            temp(w, 0) = 0;
-            ////cout << "temp NAN at " << w << endl;
-        }
-        if(std::isinf(temp(w, 0)) || std::isinf(-temp(w, 0))) {
-            //cout << "temp INF at " << w << endl;
-            double s = 0;
-            for(int i = 0; i < NX[g]; i ++) {
-                //cout << Tau[g].coeffRef(w, i) << " * " << X(i, 0) << " = " << Tau[g].coeffRef(w, i) * X(i, 0) << endl;
-                s += Tau[g].coeffRef(w, i) * X(i, 0);
-            }
-            //cout << "total " << s << endl;
-            temp(w, 0) = 0;
+    int nz = temp.nonZeros();
+    for(auto i = temp.valuePtr(); i != temp.valuePtr() + nz; ++ i) {
+        if(std::isnan(*i)) {
+            *i = 0;
+        }else if(std::isinf(*i) || std::isinf(-*i)) {
+            *i = 0;
         }
     }
-    Eigen::MatrixXd jac = Tau[g].transpose() * temp;
+    
+    //for(int w = 0 ; w < NW; w ++) {
+    //    if(std::isnan(temp(w, 0))) {
+    //        temp(w, 0) = 0;
+    //    }
+    //    if(std::isinf(temp(w, 0)) || std::isinf(-temp(w, 0))) {
+    //        double s = 0;
+    //        for(int i = 0; i < NX[g]; i ++) {
+    //            s += Tau[g].coeffRef(w, i) * X(i, 0);
+    //        }
+    //        temp(w, 0) = 0;
+    //    }
+    //}
+    temp = Tau[g].transpose() * temp;
+    Eigen::MatrixXd jac = Eigen::MatrixXd(temp);
 
     //cout << "jac before " << jac << endl;
     //cout << "jac summation" << jac.sum() << endl;
@@ -439,7 +457,7 @@ Eigen::MatrixXd EMAlgorithm::QConstraintsNormal(Eigen::MatrixXd X, int g) {
     return normals;
 }
 
-void EMAlgorithm::work(int T) {
+void EMAlgorithm::work(int T, string outputPath) {
     initialVariables();
     
     for(int g = 0; g < NG; g ++) {
@@ -456,7 +474,7 @@ void EMAlgorithm::work(int T) {
     int proc = 0;
     //while(true) {
     while(proc < 2) {
-        cout << "\n\n++++++++++" << proc ++ << " iteration processed..." << endl;
+        cout << "\n\n+++ " << proc ++ << " iteration processed..." << endl;
         //cout << Z << endl;
         cout << "E-step...." << endl;
         eStep();
@@ -493,38 +511,15 @@ void EMAlgorithm::work(int T) {
         }
         //cout << Z << endl;
     }
-    computePSI();
+    computePSI(outputPath);
 }
 
-void EMAlgorithm::computePSI() {
+void EMAlgorithm::computePSI(string outputPath) {
     PSI.clear();
     for(int g = 0; g < NG; g ++) {
         Eigen::MatrixXd tempPSI = X[g].cwiseQuotient(L[g].transpose());
         double sumExon = EPS;
         double sumJunction = EPS;
-        //cout << tempPSI << endl;
-        //cout << X[g] << endl;
-        //cout << "Summation is " << X[g].sum() << endl;
-        //cout << "================" << endl;
-        //cout << QFunction(X[g], g) << endl;
-        //cout << "================" << endl;
-        //cout << QGradient(X[g], g) << endl;
-        //cout << "================" << endl;
-        //cout << QConstraints(X[g], g) << endl;
-        //cout << "================" << endl;
-        //cout << QConstraintsNormal(X[g], g) << endl;
-        //cout << "================" << endl;
-        //Eigen::MatrixXd a(2,3);
-        //a << 1, 2, 3,
-        //    4, 5, 6;
-        //cout << a << endl;
-        //double* pnt = a.data();
-        //for(int i = 0 ; i < 9 ; i++) {
-        //    cout << *pnt << " ";
-        //    pnt ++;
-        //}
-        //cout << endl;
-        //getchar();
         for(int i = 0; i < NX[g]; i ++) {
             if(i < NE[g]) {
                 sumExon += tempPSI(i, 0);
@@ -533,20 +528,30 @@ void EMAlgorithm::computePSI() {
             }
         }
         tempPSI /= (sumExon - sumJunction);
-        //cout << sumExon << endl;
-        //cout << sumJunction << endl;
-        //getchar();
         vector <double> temp;
         for(int e = 0; e < NE[g]; e ++) {
             temp.push_back(tempPSI(e, 0));
         }
         PSI.push_back(temp);
     }
+    
+    ofstream output(outputPath, ios::out);
+    output << "[" << endl;
     for(int g = 0; g < NG; g ++) {
-        cout << "[ ";
+        output << "[";
         for(int e = 0; e < NE[g]; e ++) {
-            cout << PSI[g][e] << ", ";
+            if(e == NE[g] - 1) {
+                output << PSI[g][e] << "]";
+            } else {
+                output << PSI[g][e] << ", ";
+            }
         }
-        cout << "]" << endl;
+        if(g == NG - 1) {
+            output << "]" << endl;
+        } else {
+            output << "," << endl;
+        }
     }
+    output.flush();
+    output.close();
 }

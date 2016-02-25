@@ -6,10 +6,14 @@ class ReadGenerator:
         
     def generateUniformRead(self):
         self.reads = []
-        isoformIn = open('../kits/isoform.fa', 'r')
+        isoformIn = open('../kits/isoformSim.fa', 'r')
         isoform = []
+        k = 0
         for line in isoformIn:
-            isoform.append(line[:-1])
+            if k % 2 == 1:
+                isoform.append(line[:-1])
+            k += 1
+
         d = 0
         while d < self.depth:
             iso = 0
@@ -29,10 +33,27 @@ class ReadGenerator:
         pass
     
     def outputReadFastq(self):
-        readOut = open('../input/reads.fq', 'w')
+        readOut = open('../input/readsSim.fq', 'w')
+        k = 0
         for read in self.reads:
+            print('@Read' + str(k) +':W:S', file = readOut)
             print(read, file = readOut)
+            print('+', file = readOut)
+            for i in range(len(read)):
+                print('~', end = '', file = readOut)
+            print('', file = readOut)
+            k += 1
     
+    def outputReadFasta(self):
+        readOut = open('../input/readsSim.fa', 'w')
+        k = 0
+        for read in self.reads:
+            print('>Read' + str(k) +':W:S', file = readOut)
+            print(read, file = readOut)
+            k += 1
+        
+
     def work(self):
         self.generateUniformRead()
         self.outputReadFastq()
+        self.outputReadFasta()

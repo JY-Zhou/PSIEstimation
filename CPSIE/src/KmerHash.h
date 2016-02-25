@@ -28,15 +28,22 @@ class KmerHash {
         vector <vector<pair<int, int> > > geneBoundary;
 
         KmerHash();
-        KmerHash(int, int, string, string, string);
+        KmerHash(int, string, string, string);
         ~KmerHash();
         
         void readReads(string);
+        void readReadsFasta(string);
+        void readReadsFastq(string);
         void readGenome(string);
+        void readFromGtf(string);
+        void readFromBed(string);
         void buildKmerTable(string);
         void mergeKmerTable();
 
         inline int parseBP(char);
+        inline char antiBP(char);
+        inline void readKmer(string);
+        inline string getAntiSense(string);
         inline double contribution(int, int, int, int, int);
 };
 

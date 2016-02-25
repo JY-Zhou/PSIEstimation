@@ -2,9 +2,9 @@
 
 KmerHash::KmerHash() {}
 
-KmerHash::KmerHash(int K, int readLength, string genomePath, string exonBoundaryPath, string readPath) {
+KmerHash::KmerHash(int K, string genomePath, string exonBoundaryPath, string readPath) {
     this -> K = K;
-    this -> readLength = readLength;
+    this -> readLength = -1;
     mask = 0;
     for(int i = 0; i < K; i++) {
         mask = (mask << 2) + 3;
@@ -12,7 +12,6 @@ KmerHash::KmerHash(int K, int readLength, string genomePath, string exonBoundary
     NW = 0;
     NG = 0;
     NE.clear();
-    //kmers.clear();
     kmerCount.clear();
     kmerTable.clear();
     geneBoundary.clear();
@@ -33,38 +32,137 @@ inline int KmerHash::parseBP(char c) {
     return -1;
 }
 
+inline char KmerHash::antiBP(char c) {
+    if(c == 'A' or c == 'a') return 'T';
+    if(c == 'C' or c == 'c') return 'G';
+    if(c == 'G' or c == 'g') return 'C';
+    if(c == 'T' or c == 't') return 'A';
+    return 'N';
+}
+
+inline string KmerHash::getAntiSense(string reads) {
+    //return "";
+    //string ret = "";
+    //for(int i = reads.length() - 1; i >= 0; i --) {
+    //    char c = reads[i];
+    //    if(c == 'A' or c == 'a') ret += 'T';
+    //    if(c == 'C' or c == 'c') ret += 'G';
+    //    if(c == 'G' or c == 'g') ret += 'C';
+    //    if(c == 'T' or c == 't') ret += 'A';
+    //}
+    //return ret;
+    reverse(reads.begin(), reads.end());
+    for(int i = 0; i < reads.length(); i ++) {
+        reads[i] = antiBP(reads[i]);
+    }
+    return reads;
+}
+
+inline void KmerHash::readKmer(string reads) {
+    long long id = 0;
+    int st = 0;
+    while(st < K - 1) {
+        id = (id << 2) + parseBP(reads[st]);
+        st ++;
+    }
+
+    while(st < reads.length()) {
+        id = ((id << 2) + parseBP(reads[st])) & mask;
+        if(kmerCount.count(id) > 0) {
+            kmerCount[id] = kmerCount[id] + 1;
+        } else {
+            kmerCount[id] = 1;
+            kmerTable[id] = unordered_map<string, double> ();
+        }
+        st ++;
+    }
+}
+
 void KmerHash::readReads(string readPath) {
+    vector <string> fileInfo;
+    boost::split(fileInfo, readPath, boost::is_any_of("."));
+    string ext = fileInfo.back();
+    boost::algorithm::to_lower(ext);
+    if(ext == "fa" || ext == "fasta") {
+        cout << ".FASTA reads file format detected" << endl;
+        readReadsFasta(readPath);
+    } else if(ext == "fq" || ext == "fastq") {
+        cout << ".FASTQ reads file format detected" << endl;
+        readReadsFastq(readPath);
+    }
+}
+
+void KmerHash::readReadsFastq(string readPath) {
     ifstream readsFile(readPath.c_str(), ios::in);
     int proc = 0;
-    string reads;
-    while(getline(readsFile, reads)) {
-        reads = boost::trim_copy(reads);
-
+    string line;
+    cout << "Processing reads..." << endl;
+    while(getline(readsFile, line)) {
         proc ++;
         if(proc % 100000 == 0)
-            cout << proc << " reads processed..." << endl;
-        
-        long long id = 0;
-        int st = 0;
-        while(st < K - 1) {
-            id = (id << 2) + parseBP(reads[st]);
-            st ++;
+            cout << ">" << flush;
+
+        string identifier = "";
+        string reads = "";
+        string strand = "";
+        string score = "";
+
+        if(line[0] == '@') {
+            identifier = boost::trim_copy(line);
+            getline(readsFile, line);
+            reads = boost::trim_copy(line);
+            getline(readsFile, line);
+            strand = boost::trim_copy(line);
+            getline(readsFile, line);
+            score = boost::trim_copy(line);
         }
 
-        while(st < reads.length()) {
-            id = ((id << 2) + parseBP(reads[st])) & mask;
-            if(kmerCount.count(id) > 0) {
-                kmerCount[id] = kmerCount[id] + 1;
-            } else {
-                kmerCount[id] = 1;
-                kmerTable[id] = unordered_map<string, double> ();
-            }
-            st ++;
+        if(readLength == -1) {
+            readLength = reads.length();
         }
+
+        readKmer(reads);
+        readKmer(getAntiSense(reads));
     }
+    cout << endl;
     readsFile.close();
+    cout << "Total " << proc << " reads." << endl;
     cout << kmerCount.size() << " kmers before merging"<< endl;
     cout << "End of read reads." << endl;
+}
+
+void KmerHash::readReadsFasta(string readPath) {
+    ifstream readsFile(readPath.c_str(), ios::in);
+    int proc = 0;
+    string line;
+    cout << "Processing reads... (FASTA Format)" << endl;
+    while(getline(readsFile, line)) {
+        proc ++;
+        if(proc % 100000 == 0)
+            cout << ">" << flush;
+
+        string identifier = "";
+        string reads = "";
+
+        if(line[0] == '>') {
+            identifier = boost::trim_copy(line);
+            getline(readsFile, line);
+            reads = boost::trim_copy(line);
+        }
+
+        if(readLength == -1) {
+            readLength = reads.length();
+        }
+
+        readKmer(reads);
+        readKmer(getAntiSense(reads));
+    }
+    cout << endl;
+    readsFile.close();
+    cout << "Total " << proc << " reads." << endl;
+    cout << kmerCount.size() << " kmers before merging"<< endl;
+    cout << "End of read reads." << endl;
+
 }
 
 inline double KmerHash::contribution(int st, int ed, int l, int r, int len) {
@@ -74,10 +172,31 @@ inline double KmerHash::contribution(int st, int ed, int l, int r, int len) {
 }
 
 void KmerHash::readGenome(string exonBoundaryPath) {
-    const int COL_EXONNUM = 1;
-    const int COL_EXONST = 2;
-    const int COL_EXONED = 3;
-    cout << "Begin reading genome" << endl;
+    vector <string> fileInfo;
+    boost::split(fileInfo, exonBoundaryPath, boost::is_any_of("."));
+    string ext = fileInfo.back();
+    boost::algorithm::to_lower(ext);
+    if(ext == "bed") {
+        cout << ".BED annotation file format detect." << endl;
+        readFromBed(exonBoundaryPath);
+    } else if(ext == "gtf") {
+        cout << ".GTF annotation file format detect." << endl;
+        readFromGtf(exonBoundaryPath);
+    }
+}
+
+void KmerHash::readFromGtf(string exonBoundaryPath) {
+
+}
+
+void KmerHash::readFromBed(string exonBoundaryPath) {
+    const int COL_CHROMST = 1;
+    const int COL_CHROMED = 2;
+    const int COL_STRAND = 5;
+    const int COL_EXONNUM = 9;
+    const int COL_EXONST = 11;
+    const int COL_EXONLEN = 10;
+    cout << "Read genome ..." << endl;
 
     ifstream exonBoundaryFile(exonBoundaryPath.c_str(), ios::in);
     string transcript;
@@ -85,16 +204,17 @@ void KmerHash::readGenome(string exonBoundaryPath) {
         transcript = boost::trim_copy(transcript);
         vector <string> subcol;
         vector <string> subst;
-        vector <string> subed;
+        vector <string> sublen;
         boost::split(subcol, transcript, boost::is_any_of("\t"));
         boost::split(subst, subcol[COL_EXONST], boost::is_any_of(","));
-        boost::split(subed, subcol[COL_EXONED], boost::is_any_of(","));
+        boost::split(sublen, subcol[COL_EXONLEN], boost::is_any_of(","));
 
         vector <pair <int, int> > exons;
         int exonnum = boost::lexical_cast<int> (subcol[COL_EXONNUM]);
+        int chromst = boost::lexical_cast<int> (subcol[COL_CHROMST]);
         for(int i = 0; i < exonnum; i++) {
-            int exonst = boost::lexical_cast<int>(subst[i]);
-            int exoned = boost::lexical_cast<int>(subed[i]);
+            int exonst = chromst + boost::lexical_cast<int>(subst[i]);
+            int exoned = exonst + boost::lexical_cast<int>(sublen[i]) - 1;
             exons.push_back(make_pair(exonst, exoned));
         }
         geneBoundary.push_back(exons);
@@ -135,7 +255,7 @@ void KmerHash::buildKmerTable(string genomePath) {
     //}
 
     for(int g = 0; g < NG; g++) {
-        cout << "Gene-" << g << " processed..." << endl;
+        //cout << "Gene-" << g << " processed..." << endl;
 
         for(int e = 0; e < NE[g]; e++) {
             ostringstream oss;
